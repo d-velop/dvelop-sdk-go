@@ -20,5 +20,4 @@ func TestCanDeserializeSCIMUser(t *testing.T) {
 	if !reflect.DeepEqual(u, donaldDuck) {
 		t.Errorf("Unmarshaled Object wrong: got \n %v want\n %v", u, donaldDuck)
 	}
-
 }
