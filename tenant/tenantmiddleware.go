@@ -126,3 +126,13 @@ func IdFromCtx(ctx context.Context) (string, error) {
 	}
 	return tenantId, nil
 }
+
+// SetId returns a new context.Context with the given tenantId
+func SetId(ctx context.Context, tenantId string) context.Context {
+	return context.WithValue(ctx, tenantIdCtxKey, tenantId)
+}
+
+// SetSystemBaseUri returns a new context.Context with the given systemBaseUri
+func SetSystemBaseUri(ctx context.Context, systemBaseUri string) context.Context {
+	return context.WithValue(ctx, systemBaseUriCtxKey, systemBaseUri)
+}

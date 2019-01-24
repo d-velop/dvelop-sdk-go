@@ -1,6 +1,7 @@
 package tenant_test
 
 import (
+	"context"
 	"fmt"
 	"github.com/d-velop/dvelop-sdk-go/tenant"
 	"net/http"
@@ -335,6 +336,36 @@ func TestHeadersAndNoSignatureSecretKey_Returns500(t *testing.T) {
 	}
 	if handlerSpy.hasBeenCalled {
 		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestNoIdOnContext_SetId_ReturnsContextWithId(t *testing.T) {
+	ctx := tenant.SetId(context.Background(), "123ABC")
+	if id, _ := tenant.IdFromCtx(ctx); id != "123ABC" {
+		t.Errorf("got wrong tenantId from context: got %v want %v", id, "123ABC")
+	}
+}
+
+func TestIdOnContext_SetId_ReturnsContextWithNewId(t *testing.T) {
+	ctx := tenant.SetId(context.Background(), "123ABC")
+	ctx = tenant.SetId(ctx, "XYZ")
+	if id, _ := tenant.IdFromCtx(ctx); id != "XYZ" {
+		t.Errorf("got wrong tenantId from context: got %v want %v", id, "XYZ")
+	}
+}
+
+func TestSystemBaseUriOnContext_SetSystemBaseUri_ReturnsContextWithSystemBaseUri(t *testing.T) {
+	ctx := tenant.SetSystemBaseUri(context.Background(), "https://xyz.mydomain.de")
+	if u, _ := tenant.SystemBaseUriFromCtx(ctx); u != "https://xyz.mydomain.de" {
+		t.Errorf("got wrong systemBaseUri from context: got %v want %v", u, "https://xyz.mydomain.de")
+	}
+}
+
+func TestSystemBaseUriOnContext_SetSystemBaseUri_ReturnsContextWithNewSystemBaseUri(t *testing.T) {
+	ctx := tenant.SetSystemBaseUri(context.Background(), "https://xyz.mydomain.de")
+	ctx = tenant.SetSystemBaseUri(context.Background(), "https://abc.mydomain.de")
+	if u, _ := tenant.SystemBaseUriFromCtx(ctx); u != "https://abc.mydomain.de" {
+		t.Errorf("got wrong systemBaseUri from context: got %v want %v", u, "https://abc.mydomain.de")
 	}
 }
 
