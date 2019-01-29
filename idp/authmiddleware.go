@@ -30,11 +30,16 @@ const authSessionIdKey = contextKey("AuthSessionId")
 // the resource which has been originally invoked.
 // If the user is logged in successfully information about the user (principal) and the authSession can be
 // taken from the context.
+// With the parameter 'allowExternalUser' user which is known by an OpenID Connect provider can log in.
+// Otherwise those user are unknown for IdentityProvider and the request is redirected to the IdentityProvider
+// for authentication.
 //
 // Example:
 //	func main() {
+//		// allow user which is authenticated by Open ID Connect provider
+//		allowExternalUser := true
 //		mux := http.NewServeMux()
-//		mux.Handle("/hello", idp.HandleAuth(tenant.SystemBaseUriFromCtx, tenant.TenantIdFromCtx, logerror, loginfo)(helloHandler()))
+//		mux.Handle("/hello", idp.HandleAuth(tenant.SystemBaseUriFromCtx, tenant.TenantIdFromCtx, allowExternalUser, logerror, loginfo)(helloHandler()))
 //	}
 //
 //	func helloHandler() http.Handler {
@@ -46,7 +51,7 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //			fmt.Fprintf(w, "Hello %v your authsessionId is %v", principal.DisplayName, authSessionId)
 //		})
 //	}
-func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
+func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalUser bool, logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
@@ -85,7 +90,7 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			principal, gPErr := getPrincipalFromIdp(ctx, systemBaseUri, authSessionId, tenantId, loginfo)
+			principal, gPErr := getPrincipalFromIdp(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalUser)
 			if gPErr != nil {
 				if gPErr == errInvalidAuthSessionId {
 					redirectToIdpLogin(rw, req)
@@ -150,8 +155,11 @@ func isTextHtmlAccepted(header string) bool {
 	return false
 }
 
-func validateEndpointFor(systemBaseUriString string) (*url.URL, error) {
-	const validateEndpointString = "/identityprovider/validate"
+func validateEndpointFor(systemBaseUriString string, allowExternalUser bool) (*url.URL, error) {
+	validateEndpointString := "/identityprovider/validate"
+	if allowExternalUser {
+		validateEndpointString = fmt.Sprintf("%v?allowExternalValidation=true", validateEndpointString)
+	}
 	validateEndpoint, vPErr := url.Parse(validateEndpointString)
 	if vPErr != nil {
 		return nil, fmt.Errorf("%v", vPErr)
@@ -163,7 +171,7 @@ func validateEndpointFor(systemBaseUriString string) (*url.URL, error) {
 	return base.ResolveReference(validateEndpoint), nil
 }
 
-func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string)) (scim.Principal, error) {
+func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalUser bool) (scim.Principal, error) {
 	cacheKey := fmt.Sprintf("%v/%v", tenantId, authSessionId)
 	co, found := userCache.Get(cacheKey)
 	if found {
@@ -172,7 +180,7 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSe
 		return p, nil
 	}
 
-	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString)
+	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString, allowExternalUser)
 	if vEErr != nil {
 		return scim.Principal{}, vEErr
 	}

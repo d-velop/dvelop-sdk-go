@@ -25,7 +25,7 @@ func TestGetRequestWithFalseAuthorizationType_RedirectsToIdp(t *testing.T) {
 	req.Header.Set("Authorization", "Basic adadbk")
 	handlerSpy := handlerSpy{}
 
-	idp.HandleAuth(nil, nil, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -47,7 +47,7 @@ func TestGetRequestWithFalseCookie_RedirectsToIdp(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: "AnyCookie", Value: "adadbk"})
 	handlerSpy := handlerSpy{}
 
-	idp.HandleAuth(nil, nil, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -67,7 +67,7 @@ func TestHeadRequestWithoutAuthorizationInfos_RedirectsToIdp(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	idp.HandleAuth(nil, nil, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -87,7 +87,7 @@ func TestPostRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	idp.HandleAuth(nil, nil, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -107,7 +107,7 @@ func TestPutRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	idp.HandleAuth(nil, nil, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -127,7 +127,7 @@ func TestDeleteRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	idp.HandleAuth(nil, nil, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -147,7 +147,7 @@ func TestPatchRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	idp.HandleAuth(nil, nil, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	idp.HandleAuth(nil, nil,false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -173,10 +173,10 @@ func TestRequestWithBearerAuthorization_PopulatesContextWithPrincipalAndAuthsess
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e1"}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -195,10 +195,10 @@ func TestRequestWithLowerCaseBearerAuthorization_PopulatesContextWithPrincipalAn
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e2"}
 	req.Header.Set("Authorization", "bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -218,10 +218,10 @@ func TestRequestWithAuthSessionIdCookie_PopulatesContextWithPrincipalAndAuthsess
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e3"}
 	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: base64EncodedAuthSessionId})
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -241,11 +241,11 @@ func TestRequestWithBadUrlEncodedAuthSessionIdCookie_ReturnsStatus500(t *testing
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e3"}
 	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: base64EncodedAuthSessionId})
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -266,10 +266,10 @@ func TestRequestWithBearerTokenAndCookie_PopulatesContextUsingBearerToken(t *tes
 	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: cookieValue})
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -295,7 +295,7 @@ func TestRequestWithBadToken_RedirectsToIdp(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -317,11 +317,11 @@ func TestGetSystemBaseUriFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e4"}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(func(ctx context.Context) (string, error) { return "", errors.New("any error") }, returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(func(ctx context.Context) (string, error) { return "", errors.New("any error") }, returnFromCtx("1"),false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -340,11 +340,11 @@ func TestGetTenantIdFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e4"}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal})
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal},nil)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), func(ctx context.Context) (string, error) { return "", errors.New("any error") }, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), func(ctx context.Context) (string, error) { return "", errors.New("any error") }, false,log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -369,7 +369,7 @@ func TestIdPReturnsStatus500_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -395,7 +395,7 @@ func TestIdPReturnsMalformedJson_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -421,7 +421,7 @@ func TestIdPReturnsPrincipalWithEmptyId_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -450,9 +450,9 @@ func TestUserIsCachedAndCacheEntryIsNotExpired_ReturnsCachedEntry(t *testing.T) 
 	}))
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 	time.Sleep(1 * time.Nanosecond)
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if idpCalled != 1 {
 		t.Errorf("IdP has been called %v times but expected %v times", idpCalled, 1)
@@ -481,9 +481,9 @@ func TestUserIsCachedButCacheEntryIsExpired_CallsIdp(t *testing.T) {
 	}))
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 	time.Sleep(1 * time.Second)
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if idpCalled != 2 {
 		t.Errorf("IdP has been called %v times but expected %v times", idpCalled, 2)
@@ -502,10 +502,10 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 	}
 	principalT1 := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e7"}
 	reqTenant1.Header.Set("Authorization", "Bearer "+authSessionId)
-	idpStub1 := newIdpStub(map[string]scim.Principal{authSessionId: principalT1})
+	idpStub1 := newIdpStub(map[string]scim.Principal{authSessionId: principalT1},nil)
 	defer idpStub1.Close()
 	handlerSpy1 := handlerSpy{}
-	idp.HandleAuth(returnFromCtx(idpStub1.URL), returnFromCtx("1"), log, log)(&handlerSpy1).ServeHTTP(httptest.NewRecorder(), reqTenant1)
+	idp.HandleAuth(returnFromCtx(idpStub1.URL), returnFromCtx("1"), false,log, log)(&handlerSpy1).ServeHTTP(httptest.NewRecorder(), reqTenant1)
 
 	if err := handlerSpy1.assertPrincipalIs(principalT1); err != nil {
 		t.Error(err)
@@ -517,12 +517,104 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 	}
 	principalT2 := scim.Principal{Id: "0bbbf1b6-017a-449a-ad5f-9723d28223e7"}
 	reqTenant2.Header.Set("Authorization", "Bearer "+authSessionId)
-	idpStub2 := newIdpStub(map[string]scim.Principal{authSessionId: principalT2})
+	idpStub2 := newIdpStub(map[string]scim.Principal{authSessionId: principalT2},nil)
 	defer idpStub2.Close()
 	handlerSpy2 := handlerSpy{}
-	idp.HandleAuth(returnFromCtx(idpStub2.URL), returnFromCtx("2"), log, log)(&handlerSpy2).ServeHTTP(httptest.NewRecorder(), reqTenant2)
+	idp.HandleAuth(returnFromCtx(idpStub2.URL), returnFromCtx("2"), false,log, log)(&handlerSpy2).ServeHTTP(httptest.NewRecorder(), reqTenant2)
 
 	if err := handlerSpy2.assertPrincipalIs(principalT2); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestAsExternalUserWithoutExternalUserAllowed_RedirectsToIdp(t *testing.T){
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpStub := newIdpStub(map[string]scim.Principal{"400e7388-1834-434b-be79-370000000000": {Id:"user1"}},nil)
+	defer idpStub.Close()
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
+		t.Error(err)
+	}
+	if err := spy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestRequestAsUnknownExternalUserWithExternalUserAllowed_RedirectsToIdp(t *testing.T){
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpStub := newIdpStub(map[string]scim.Principal{"400e7388-1834-434b-be79-370000000000": {Id:"user1"}}, map[string]scim.Principal{"500e7388-1834-434b-be79-370000000000":{Id:"user2"}})
+	defer idpStub.Close()
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
+		t.Error(err)
+	}
+	if err := spy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestRequestAsExternalUserWithExternalUserAllowed_PopulatesContextWithPrincipalAndAuthsession(t *testing.T){
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const authSessionId = "aXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e1"}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	handlerSpy := handlerSpy{}
+	idpStub := newIdpStub(nil, map[string]scim.Principal{authSessionId:principal})
+	defer idpStub.Close()
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),true, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
+		t.Error(err)
+	}
+	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestAsUserWithExternalUserAllowed_PopulatesContextWithPrincipalAndAuthsession(t *testing.T){
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const authSessionId = "aXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e1"}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	handlerSpy := handlerSpy{}
+	idpStub := newIdpStub( map[string]scim.Principal{authSessionId:principal},nil)
+	defer idpStub.Close()
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),true, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
+		t.Error(err)
+	}
+	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
 		t.Error(err)
 	}
 }
@@ -545,8 +637,8 @@ func TestIdpSendsNoCacheHeader_CallsIdp(t *testing.T) {
 	}))
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false,log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if idpCalled != 2 {
 		t.Errorf("IdP has been called %v times but expected %v times", idpCalled, 2)
@@ -596,7 +688,7 @@ func TestGetRequestWithoutAuthorizationInfosWithAcceptHeader(t *testing.T) {
 			responseSpy := responseSpy{httptest.NewRecorder()}
 
 			handlerSpy := &handlerSpy{}
-			idp.HandleAuth(nil, nil, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+			idp.HandleAuth(nil, nil,false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 			if handlerSpy.hasBeenCalled {
 				t.Error("inner handler should not have been called")
@@ -621,16 +713,40 @@ func TestGetRequestWithoutAuthorizationInfosWithAcceptHeader(t *testing.T) {
 	}
 }
 
-func newIdpStub(principals map[string]scim.Principal) *httptest.Server {
+func newIdpStub(principals map[string]scim.Principal, externalPrincipals map[string]scim.Principal) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/identityprovider/validate" {
+		if r.URL.Path == "/identityprovider/validate" && r.URL.RawQuery != "allowExternalValidation=true" {
+			// allowExternalUser is set to 'false' in HandlerAuth
+			// look only in principals for principal
 			var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
 			authorizationHeader := r.Header.Get("Authorization")
 			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
 
 			w.Header().Set("Cache-Control", "max-age=1800, private")
 			w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
-			_ = json.NewEncoder(w).Encode(principals[authToken])
+			if principal, exist := principals[authToken]; exist {
+				_ = json.NewEncoder(w).Encode(principal)
+			} else {
+				http.Error(w, "", http.StatusUnauthorized)
+			}
+			return
+		} else if r.URL.Path == "/identityprovider/validate" && r.URL.RawQuery == "allowExternalValidation=true" {
+			// allowExternalUser is set to 'true' in HandlerAuth
+			// look in externalPrincipal for principal then in principals
+			var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
+			authorizationHeader := r.Header.Get("Authorization")
+			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
+
+			w.Header().Set("Cache-Control", "max-age=1800, private")
+			w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+
+			if externalPrincipal, exist := externalPrincipals[authToken]; exist {
+				_ = json.NewEncoder(w).Encode(externalPrincipal)
+			} else if principal, exist := principals[authToken]; exist {
+				_ = json.NewEncoder(w).Encode(principal)
+			} else {
+				http.Error(w, "", http.StatusUnauthorized)
+			}
 			return
 		}
 		http.Error(w, "", http.StatusNotFound)
