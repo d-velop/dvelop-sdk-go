@@ -101,7 +101,6 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 			if gPErr != nil {
 				if gPErr == errInvalidAuthSessionId {
 					redirectToIdpLogin(rw, req)
-					return
 				} else if gPErr == errExternalValidationNotAllowed {
 					loginfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
