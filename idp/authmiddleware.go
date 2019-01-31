@@ -30,9 +30,16 @@ const authSessionIdKey = contextKey("AuthSessionId")
 // the resource which has been originally invoked.
 // If the user is logged in successfully information about the user (principal) and the authSession can be
 // taken from the context.
-// With the parameter 'allowExternalUser' user which is known by an OpenID Connect provider can log in.
-// Otherwise those user are unknown for IdentityProvider and the request is redirected to the IdentityProvider
-// for authentication.
+// The parameter allowExternalValidation determines if the handler accepts external users. External users
+// are those who have been successfully authenticated by an external identity provider such as Google, but
+// have NOT been added to the pool of known users of this particular d.velop cloud tenant so far.
+// USE THIS FEATURE WITH CAUTION. You don't know much about external users and should restrict the rights
+// of external users to a minimum if you must allow access for external users at all. If external users are
+// enabled (allowExternalValidation is true) the principal struct representing an external user doesn't
+// provide any information apart from the e-mail address and a the reserved group ID '3E093BE5-CCCE-435D-99F8-544656B98681'
+// which marks the user as an external user which is unknown to the system. This group ID can be used to
+// distinguish external from internal users.
+// If you are unsure, you should set allowExternalValidation to false, as you usually don't want external users to access your app.
 //
 // Example:
 //	func main() {
@@ -51,7 +58,7 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //			fmt.Fprintf(w, "Hello %v your authsessionId is %v", principal.DisplayName, authSessionId)
 //		})
 //	}
-func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalUser bool, logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
+func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalValidation bool, logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
@@ -90,11 +97,14 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			principal, gPErr := getPrincipalFromIdp(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalUser)
+			principal, gPErr := getPrincipalFromIdp(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalValidation)
 			if gPErr != nil {
 				if gPErr == errInvalidAuthSessionId {
 					redirectToIdpLogin(rw, req)
 					return
+				} else if gPErr == errExternalValidationNotAllowed {
+					logerror(ctx, fmt.Sprintf("request with external user but external validation is not allowed. Please active external user validation in IdentityProvider middleware for HandleAuth."))
+					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				}
 				logerror(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", gPErr))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -116,6 +126,8 @@ func redirectToIdpLogin(rw http.ResponseWriter, req *http.Request) {
 var httpClient = &http.Client{}
 
 var errInvalidAuthSessionId = errors.New("invalid AuthSessionId")
+
+var errExternalValidationNotAllowed = errors.New("external validation not allowed")
 
 var userCache = cache.New(1*time.Minute, 5*time.Minute)
 
@@ -155,9 +167,18 @@ func isTextHtmlAccepted(header string) bool {
 	return false
 }
 
-func validateEndpointFor(systemBaseUriString string, allowExternalUser bool) (*url.URL, error) {
+func isPrincipalExternalUser(p scim.Principal)bool {
+	for _, group:= range p.Groups {
+		if strings.ToUpper(group.Value) == "3E093BE5-CCCE-435D-99F8-544656B98681"{
+			return true
+		}
+	}
+	return false
+}
+
+func validateEndpointFor(systemBaseUriString string, allowExternalValidation bool) (*url.URL, error) {
 	validateEndpointString := "/identityprovider/validate"
-	if allowExternalUser {
+	if allowExternalValidation {
 		validateEndpointString = fmt.Sprintf("%v?allowExternalValidation=true", validateEndpointString)
 	}
 	validateEndpoint, vPErr := url.Parse(validateEndpointString)
@@ -171,7 +192,7 @@ func validateEndpointFor(systemBaseUriString string, allowExternalUser bool) (*u
 	return base.ResolveReference(validateEndpoint), nil
 }
 
-func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalUser bool) (scim.Principal, error) {
+func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalValidation bool) (scim.Principal, error) {
 	cacheKey := fmt.Sprintf("%v/%v", tenantId, authSessionId)
 	co, found := userCache.Get(cacheKey)
 	if found {
@@ -180,7 +201,7 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSe
 		return p, nil
 	}
 
-	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString, allowExternalUser)
+	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString, allowExternalValidation)
 	if vEErr != nil {
 		return scim.Principal{}, vEErr
 	}
@@ -203,7 +224,7 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSe
 		if decErr != nil {
 			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%v' is no valid JSON because: %v", validateEndpoint.String(), decErr)
 		}
-		if p.Id == "" {
+		if p.Id == "" && !isPrincipalExternalUser(p) {
 			return scim.Principal{}, errors.New("principal returned by identityprovider has no Id")
 		}
 
@@ -222,6 +243,8 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSe
 		return p, nil
 	case http.StatusUnauthorized:
 		return scim.Principal{}, errInvalidAuthSessionId
+	case http.StatusForbidden:
+		return scim.Principal{}, errExternalValidationNotAllowed
 	default:
 		responseMsg, err := ioutil.ReadAll(response.Body)
 		responseString := ""
