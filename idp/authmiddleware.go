@@ -44,9 +44,9 @@ const authSessionIdKey = contextKey("AuthSessionId")
 // Example:
 //	func main() {
 //		// allow user which is authenticated by Open ID Connect provider
-//		allowExternalUser := true
+//		allowExternalValidation := true
 //		mux := http.NewServeMux()
-//		mux.Handle("/hello", idp.HandleAuth(tenant.SystemBaseUriFromCtx, tenant.TenantIdFromCtx, allowExternalUser, logerror, loginfo)(helloHandler()))
+//		mux.Handle("/hello", idp.HandleAuth(tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, allowExternalValidation, logerror, loginfo)(helloHandler()))
 //	}
 //
 //	func helloHandler() http.Handler {
@@ -168,9 +168,9 @@ func isTextHtmlAccepted(header string) bool {
 	return false
 }
 
-func isPrincipalExternalUser(p scim.Principal)bool {
-	for _, group:= range p.Groups {
-		if strings.ToUpper(group.Value) == "3E093BE5-CCCE-435D-99F8-544656B98681"{
+func isPrincipalExternalUser(p scim.Principal) bool {
+	for _, group := range p.Groups {
+		if strings.ToUpper(group.Value) == "3E093BE5-CCCE-435D-99F8-544656B98681" {
 			return true
 		}
 	}
