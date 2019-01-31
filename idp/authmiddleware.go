@@ -103,11 +103,12 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 					redirectToIdpLogin(rw, req)
 					return
 				} else if gPErr == errExternalValidationNotAllowed {
-					logerror(ctx, fmt.Sprintf("request with external user but external validation is not allowed. Please active external user validation in IdentityProvider middleware for HandleAuth."))
+					loginfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				} else {
+					logerror(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", gPErr))
+					http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				}
-				logerror(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", gPErr))
-				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 			ctx = context.WithValue(ctx, authSessionIdKey, authSessionId)

@@ -279,7 +279,7 @@ func TestRequestWithBearerTokenAndCookie_PopulatesContextUsingBearerToken(t *tes
 	}
 }
 
-func TestRequestWithBadToken_RedirectsToIdp(t *testing.T) {
+func TestRequestWithBadTokenAndExternalValidationIsNotAllowed_RedirectsToIdp(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -296,6 +296,35 @@ func TestRequestWithBadToken_RedirectsToIdp(t *testing.T) {
 	spy := responseSpy{httptest.NewRecorder()}
 
 	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
+		t.Error(err)
+	}
+	if err := spy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestRequestWithBadTokenAndExternalValidationIsAllowed_RedirectsToIdp(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// token nicht bekannt oder abgelaufen
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// wenn token ungültig (nicht bekannt oder abgelaufen) dann schickt IdP ein 401
+		http.Error(w, "", http.StatusUnauthorized)
+	}))
+	defer idpStub.Close()
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),true, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -548,68 +577,34 @@ func TestRequestAsExternalUserAndExternalUserValidationIsNotAllowed_ReturnsStatu
 	}
 }
 
-func TestRequestAsUnknownExternalUserAndExternalValidationIsAllowed_RedirectsToIdp(t *testing.T){
-	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const unknownUserToken = "200e7388-1834-434b-be79-3745181e1457"
-	req.Header.Set("Authorization", "Bearer "+unknownUserToken)
-	handlerSpy := handlerSpy{}
-	idpStub := newIdpStub(
-		map[string]scim.Principal{
-			"400e7388-1834-434b-be79-370000000000": {Id:"user1"},
-		},
-		map[string]scim.Principal{
-			"500e7388-1834-434b-be79-370000000000":{Emails: []scim.UserValue{{"info@d-velop.de"}},Groups: []scim.UserGroup{{Value:"3E093BE5-CCCE-435D-99F8-544656B98681"}}},
-		})
-	defer idpStub.Close()
-	spy := responseSpy{httptest.NewRecorder()}
-
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
-	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
-		t.Error(err)
-	}
-	if err := spy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-}
-
 func TestRequestAsExternalUserAndExternalValidationIsAllowed_PopulatesContextWithPrincipalAndAuthsession(t *testing.T){
-	// sleep cause caching
-	time.Sleep(1*time.Second)
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	const authSessionId = "aXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	const authSessionId = "1XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Emails: []scim.UserValue{{"info@d-velop.de"}},Groups: []scim.UserGroup{{Value:"3E093BE5-CCCE-435D-99F8-544656B98681"}}}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
-	handlerSpy := handlerSpy{}
+	handlerSpy := new(handlerSpy)
 	idpStub := newIdpStub(nil, map[string]scim.Principal{authSessionId:principal})
 	defer idpStub.Close()
 
-	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),true, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"),true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
 	}
-	if err := handlerSpy.assertExternalPrincipalIs(principal); err != nil {
+	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWithPrincipalAndAuthsession(t *testing.T){
-	// sleep to clear cache
-	time.Sleep(1*time.Second)
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	const authSessionId = "aXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	const authSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Id: "7bbbf1b6-017a-449a-ad5f-9723d28223e1"}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := new(handlerSpy)
@@ -722,39 +717,30 @@ func TestGetRequestWithoutAuthorizationInfosWithAcceptHeader(t *testing.T) {
 
 func newIdpStub(principals map[string]scim.Principal, externalPrincipals map[string]scim.Principal) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/identityprovider/validate" && r.URL.RawQuery == "allowExternalValidation=true" {
-			// allowExternalUser is set to 'true' in HandlerAuth
-			// look in externalPrincipal for principal then in principals
+		if r.URL.Path == "/identityprovider/validate" {
 			var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
 			authorizationHeader := r.Header.Get("Authorization")
 			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
 
-			w.Header().Set("Cache-Control", "max-age=1, private")
+			w.Header().Set("Cache-Control", "max-age=1800, private")
 			w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
 
-			if externalPrincipal, exist := externalPrincipals[authToken]; exist {
-				_ = json.NewEncoder(w).Encode(externalPrincipal)
-			} else if principal, exist := principals[authToken]; exist {
-				_ = json.NewEncoder(w).Encode(principal)
+			if r.URL.RawQuery == "allowExternalValidation=true" {
+				if externalPrincipal, exist := externalPrincipals[authToken]; exist {
+					_ = json.NewEncoder(w).Encode(externalPrincipal)
+				} else if principal, exist := principals[authToken]; exist {
+					_ = json.NewEncoder(w).Encode(principal)
+				} else {
+					http.Error(w, "", http.StatusUnauthorized)
+				}
 			} else {
-				http.Error(w, "", http.StatusUnauthorized)
-			}
-			return
-		} else if r.URL.Path == "/identityprovider/validate"{
-			// allowExternalUser is set to 'false' in HandlerAuth
-			// look only in principals for principal
-			var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
-			authorizationHeader := r.Header.Get("Authorization")
-			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
-
-			w.Header().Set("Cache-Control", "max-age=1, private")
-			w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
-			if principal, exist := principals[authToken]; exist {
-				_ = json.NewEncoder(w).Encode(principal)
-			} else if _, exist := externalPrincipals[authToken]; exist {
-				http.Error(w, "token is for external user", http.StatusForbidden)
-			} else {
-				http.Error(w, "", http.StatusUnauthorized)
+				if principal, exist := principals[authToken]; exist {
+					_ = json.NewEncoder(w).Encode(principal)
+				} else if _, exist := externalPrincipals[authToken]; exist {
+					http.Error(w, "token is for external user", http.StatusForbidden)
+				} else {
+					http.Error(w, "", http.StatusUnauthorized)
+				}
 			}
 			return
 		}
@@ -784,24 +770,6 @@ func (spy *handlerSpy) assertAuthSessionIdIs(expectedAuthSessionID string) error
 func (spy *handlerSpy) assertPrincipalIs(expectedPrincipal scim.Principal) error {
 	if !reflect.DeepEqual(spy.prinicpal, expectedPrincipal) {
 		return fmt.Errorf("handler set wrong principal on context: got \n %v want\n %v", spy.prinicpal, expectedPrincipal)
-	}
-	return nil
-}
-
-func (spy *handlerSpy) assertExternalPrincipalIs(expectedExternalPrincipal scim.Principal) error {
-	if spy.prinicpal.Id != "" {
-		return fmt.Errorf("id for external principal is given but id must be empty")
-	}
-	if !reflect.DeepEqual(spy.prinicpal.Emails, expectedExternalPrincipal.Emails) {
-		return fmt.Errorf("handler set principal with wrong E-Mail addresses on context: got \n %v want\n %v", spy.prinicpal, expectedExternalPrincipal)
-	}
-	if !reflect.DeepEqual(spy.prinicpal.Groups, expectedExternalPrincipal.Groups){
-		for _, externalPrincipalGroup := range spy.prinicpal.Groups {
-			if externalPrincipalGroup.Value == "3E093BE5-CCCE-435D-99F8-544656B98681" {
-				return nil
-			}
-		}
-		return fmt.Errorf("handler set principal with wrong E-Mail addresses on context: got \n %v want\n %v", spy.prinicpal, expectedExternalPrincipal)
 	}
 	return nil
 }
