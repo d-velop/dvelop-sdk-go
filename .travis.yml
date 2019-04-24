@@ -2,12 +2,12 @@ language: go
 
 go:
   - 1.12.x
-  - master
+#  - master
 
 os:
   - linux
-  - osx
-  - windows
+#  - osx
+#  - windows
 
 dist: trusty
 
@@ -15,6 +15,4 @@ sudo: false
 
 install: true
 
-script:
-  - env GO111MODULE=on go build
-  - env GO111MODULE=on go test
+script: ./build/run-tests.sh
