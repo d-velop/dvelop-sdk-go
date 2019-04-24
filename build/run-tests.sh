@@ -5,7 +5,7 @@
 
 while read f
 do
-    cd ${f}; go test ./... ; (( exit_status = exit_status || $? ))
+    cd ${f}; GO111MODULE=on go test ./... ; (( exit_status = exit_status || $? ))
 done < <(find $PWD -maxdepth 1 \( -name .git -o -name .idea -o -name build \) -prune -o ! -path $PWD -type d -print )
 
 exit ${exit_status}
