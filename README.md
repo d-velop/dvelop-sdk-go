@@ -13,7 +13,11 @@ TBD
 
 ## Running the tests
 
-TBD
+```
+./build/run-tests.sh
+```
+
+Use Git Bash to run the tests on linux.
 
 ## Contributing
 
