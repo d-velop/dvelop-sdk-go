@@ -1,5 +1,6 @@
 # d.velop cloud SDK for Go
 [![Build Status](https://travis-ci.com/d-velop/dvelop-sdk-go.svg?branch=master)](https://travis-ci.com/d-velop/dvelop-sdk-go)
+[![Godoc](https://godoc.org/github.com/d-velop/dvelop-sdk-go?status.svg)](https://godoc.org/github.com/d-velop/dvelop-sdk-go)
 
 This is the official SDK to build Apps for [d.velop cloud](https://www.d-velop.de/cloud/) using 
 the [Go Progamming Language](https://golang.org/).
