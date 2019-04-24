@@ -17,7 +17,7 @@ TBD
 ./build/run-tests.sh
 ```
 
-Use Git Bash to run the tests on linux.
+Use Git Bash to run the tests on windows.
 
 ## Contributing
 
