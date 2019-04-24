@@ -57,7 +57,7 @@ func TestShouldLogBeginOfRequest(t *testing.T) {
 	if !strings.Contains(loggedMessages[0], "GET") {
 		t.Errorf("Logmessage '%v' should contain Http Method 'GET'", loggedMessages[0])
 	}
-	if !strings.Contains(loggedMessages[0], "/myresource/subs") {
+	if !strings.Contains(loggedMessages[0], "/myresource/sub") {
 		t.Errorf("Logmessage '%v' should contain URL '/myresource/sub'", loggedMessages[0])
 	}
 	if !strings.Contains(loggedMessages[0], "Accept") || !strings.Contains(loggedMessages[0], "text/html") {
