@@ -12,8 +12,10 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
-
 	"time"
+
+	"github.com/d-velop/dvelop-sdk-go/idp"
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
 func TestGetRequestWithFalseAuthorizationType_RedirectsToIdp(t *testing.T) {
