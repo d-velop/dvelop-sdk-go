@@ -2,10 +2,11 @@ package requestid_test
 
 import (
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/requestid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/requestid"
 )
 
 func TestShouldCallInnerHandler(t *testing.T) {

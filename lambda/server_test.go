@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/lambda"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,7 +11,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/d-velop/dvelop-sdk-go/lambda"
+
 	"context"
+
 	"github.com/aws/aws-lambda-go/events"
 )
 

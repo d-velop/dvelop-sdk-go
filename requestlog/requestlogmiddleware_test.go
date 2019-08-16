@@ -3,12 +3,13 @@ package requestlog_test
 import (
 	"context"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/requestlog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/requestlog"
 )
 
 func TestShouldCallInnerHandler(t *testing.T) {

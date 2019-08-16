@@ -3,9 +3,10 @@ package log_test
 import (
 	"bytes"
 	"context"
-	"github.com/d-velop/dvelop-sdk-go/log"
 	"regexp"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/log"
 )
 
 func TestMessageEndsWithNewline_Print_WritesMessageWithNewline(t *testing.T) {

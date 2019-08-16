@@ -3,10 +3,11 @@ package tenant_test
 import (
 	"context"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/tenant"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/tenant"
 
 	"encoding/base64"
 

@@ -6,16 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"time"
 
-	"github.com/patrickmn/go-cache"
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
+
 	"strconv"
 	"strings"
+
+	"github.com/patrickmn/go-cache"
 )
 
 type contextKey string
