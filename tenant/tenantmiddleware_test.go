@@ -16,14 +16,14 @@ import (
 const systemBaseUriHeader = "x-dv-baseuri"
 const tenantIdHeader = "x-dv-tenant-id"
 const signatureHeader = "x-dv-sig-1"
-const defaultSystemBaseUri = "https://default.mydomain.de"
+const defaultSystemBaseUri = "https://default.example.com"
 
 func TestBaseUriHeaderAndEmptyDefaultBaseUri_UsesHeader(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/sub", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://sample.mydomain.de"
+	const systemBaseUriFromHeader = "https://sample.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
@@ -62,7 +62,7 @@ func TestBaseUriHeaderAndDefaultBaseUri_UsesHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://header.mydomain.de"
+	const systemBaseUriFromHeader = "https://header.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
@@ -138,7 +138,7 @@ func TestTenantIdHeaderAndBaseUriHeader_UsesHeaders(t *testing.T) {
 	}
 	const tenantIdFromHeader = "a12be5"
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
-	const systemBaseUriFromHeader = "https://header.mydomain.de"
+	const systemBaseUriFromHeader = "https://header.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader+tenantIdFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
@@ -228,7 +228,7 @@ func TestWrongDataSignedWithValidSignatureKey_Returns403(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://sample.mydomain.de"
+	const systemBaseUriFromHeader = "https://sample.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	const tenantIdFromHeader = "a12be5"
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
@@ -251,7 +251,7 @@ func TestNoneBase64Signature_Returns403(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://sample.mydomain.de"
+	const systemBaseUriFromHeader = "https://sample.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	const tenantIdFromHeader = "a12be5"
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
@@ -274,7 +274,7 @@ func TestWrongSignatureKey_Returns403(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://sample.mydomain.de"
+	const systemBaseUriFromHeader = "https://sample.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	const tenantIdFromHeader = "a12be5"
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
@@ -298,7 +298,7 @@ func TestHeadersWithoutSignature_Returns403(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://sample.mydomain.de"
+	const systemBaseUriFromHeader = "https://sample.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	const tenantIdFromHeader = "a12be5"
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
@@ -320,7 +320,7 @@ func TestHeadersAndNoSignatureSecretKey_Returns500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const systemBaseUriFromHeader = "https://sample.mydomain.de"
+	const systemBaseUriFromHeader = "https://sample.example.com"
 	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
 	const tenantIdFromHeader = "a12be5"
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
@@ -354,17 +354,17 @@ func TestIdOnContext_SetId_ReturnsContextWithNewId(t *testing.T) {
 }
 
 func TestSystemBaseUriOnContext_SetSystemBaseUri_ReturnsContextWithSystemBaseUri(t *testing.T) {
-	ctx := tenant.SetSystemBaseUri(context.Background(), "https://xyz.mydomain.de")
-	if u, _ := tenant.SystemBaseUriFromCtx(ctx); u != "https://xyz.mydomain.de" {
-		t.Errorf("got wrong systemBaseUri from context: got %v want %v", u, "https://xyz.mydomain.de")
+	ctx := tenant.SetSystemBaseUri(context.Background(), "https://xyz.example.com")
+	if u, _ := tenant.SystemBaseUriFromCtx(ctx); u != "https://xyz.example.com" {
+		t.Errorf("got wrong systemBaseUri from context: got %v want %v", u, "https://xyz.example.com")
 	}
 }
 
 func TestSystemBaseUriOnContext_SetSystemBaseUri_ReturnsContextWithNewSystemBaseUri(t *testing.T) {
-	ctx := tenant.SetSystemBaseUri(context.Background(), "https://xyz.mydomain.de")
-	ctx = tenant.SetSystemBaseUri(context.Background(), "https://abc.mydomain.de")
-	if u, _ := tenant.SystemBaseUriFromCtx(ctx); u != "https://abc.mydomain.de" {
-		t.Errorf("got wrong systemBaseUri from context: got %v want %v", u, "https://abc.mydomain.de")
+	ctx := tenant.SetSystemBaseUri(context.Background(), "https://xyz.example.com")
+	ctx = tenant.SetSystemBaseUri(context.Background(), "https://abc.example.com")
+	if u, _ := tenant.SystemBaseUriFromCtx(ctx); u != "https://abc.example.com" {
+		t.Errorf("got wrong systemBaseUri from context: got %v want %v", u, "https://abc.example.com")
 	}
 }
 
