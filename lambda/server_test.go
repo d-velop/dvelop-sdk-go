@@ -2,9 +2,9 @@ package lambda_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/lambda"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,8 +12,8 @@ import (
 	"reflect"
 	"testing"
 
-	"context"
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/d-velop/dvelop-sdk-go/lambda"
 )
 
 func invokeAdaptorFunc(t *testing.T, evt *events.APIGatewayProxyRequest) *testresult {

@@ -3,10 +3,11 @@ package syslog_test
 import (
 	"context"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/log/syslog"
 	"os"
 	"regexp"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/log/syslog"
 )
 
 func TestWriteHeaderInfoFunc_WritesAppnameAndInfoSeverity(t *testing.T) {

@@ -2,16 +2,15 @@ package tenant_test
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/tenant"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"encoding/base64"
-
-	"crypto/hmac"
-	"crypto/sha256"
+	"github.com/d-velop/dvelop-sdk-go/tenant"
 )
 
 const systemBaseUriHeader = "x-dv-baseuri"

@@ -1,8 +1,9 @@
 package mediatype_test
 
 import (
-	"github.com/d-velop/dvelop-sdk-go/contentnegotiation/mediatype"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/contentnegotiation/mediatype"
 )
 
 func TestRequestedTypeNotSupported_ReturnsErrorNotSupported(t *testing.T) {

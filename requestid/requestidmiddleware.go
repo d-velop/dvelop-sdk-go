@@ -24,8 +24,9 @@ package requestid
 import (
 	"context"
 	"errors"
-	"github.com/satori/go.uuid"
 	"net/http"
+
+	"github.com/satori/go.uuid"
 )
 
 type contextKey string
