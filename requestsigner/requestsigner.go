@@ -22,9 +22,11 @@ type RequestSigner interface {
 
 // The DvelopLifeCycleEventPath is path of an app endpoint, that apps must be provide
 const DvelopLifeCycleEventPath = "dvelop-cloud-lifecycle-event"
+const signatureHeaderKey = "x-dv-signature-headers"
+const timeDiff = 5 * time.Minute
 
 // validate signed request as middleware
-func HandleSignMiddleware(appSecret []byte, timeDifferenzInMinutes int, timeNow func() time.Time) func(http.Handler) http.Handler {
+func HandleSignMiddleware(appSecret []byte, timeNow func() time.Time) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if appSecret == nil {
@@ -49,7 +51,7 @@ func HandleSignMiddleware(appSecret []byte, timeDifferenzInMinutes int, timeNow 
 				return
 			}
 
-			signer := NewRequestSigner(appSecret, timeDifferenzInMinutes, timeNow)
+			signer := NewRequestSigner(appSecret, timeNow)
 			err := signer.ValidateSignedRequest(req)
 			if err != nil {
 				log.Print("validate signed request failed: ", err)
@@ -61,35 +63,37 @@ func HandleSignMiddleware(appSecret []byte, timeDifferenzInMinutes int, timeNow 
 }
 
 type requestSigner struct {
-	appSecret             []byte
-	timeDifferenzInMinute int
-	now                   func() time.Time
+	appSecret []byte
+	now       func() time.Time
 }
 
-func NewRequestSigner(appSecret []byte, timeDifferenzInMinute int, timeNow func() time.Time) RequestSigner {
-	if timeDifferenzInMinute < 1 {
-		timeDifferenzInMinute = 5
-	}
+func NewRequestSigner(appSecret []byte, timeNow func() time.Time) RequestSigner {
 	return &requestSigner{
 		appSecret,
-		timeDifferenzInMinute,
 		timeNow,
 	}
 }
 
 // validate signed request as function
 func (signer *requestSigner) ValidateSignedRequest(req *http.Request) error {
-	bearerRegex := regexp.MustCompile(`(?m)^(Bearer [[:xdigit:]]+)$`)
-	authorizationHeaderValue := req.Header.Get("Authorization")
-	if !bearerRegex.MatchString(authorizationHeaderValue) {
-		return errors.New(fmt.Sprintf("found authorization header is not a valid Bearer token. Got %v", authorizationHeaderValue))
+	if signer.appSecret == nil {
+		return errors.New("app secret has not been configured")
 	}
-	authorizationHeaderValue = strings.TrimPrefix(authorizationHeaderValue, "Bearer ")
 
 	validAcceptHeaderValue := "application/json"
 	if accept := req.Header.Get("accept"); accept != validAcceptHeaderValue {
 		return errors.New(fmt.Sprintf("wrong accept header found. Got %v want %v", accept, validAcceptHeaderValue))
 	}
+
+	bearerRegex := regexp.MustCompile(`(?m)^(Bearer [[:xdigit:]]+)$`)
+	authorizationHeaderValue := req.Header.Get("Authorization")
+	if authorizationHeaderValue == "" {
+		return errors.New("authorization header missing")
+	}
+	if !bearerRegex.MatchString(authorizationHeaderValue) {
+		return errors.New(fmt.Sprintf("found authorization header is not a valid Bearer token. Got %v", authorizationHeaderValue))
+	}
+	authorizationHeaderValue = strings.TrimPrefix(authorizationHeaderValue, "Bearer ")
 
 	err := signer.validateTimestamp(req)
 	if err != nil {
@@ -112,18 +116,11 @@ func (signer *requestSigner) validateTimestamp(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	diffDuration := time.Duration(signer.timeDifferenzInMinute) * time.Minute
 	timeNow := signer.now().UTC()
-	timeBeforTimestamp := timeNow.Add(-diffDuration)
-	timeAfterTimestamp := timeNow.Add(diffDuration)
+	timeBeforTimestamp := timeNow.Add(-timeDiff)
+	timeAfterTimestamp := timeNow.Add(timeDiff)
 	if !(timestampHeaderValue.After(timeBeforTimestamp) && timestampHeaderValue.Before(timeAfterTimestamp)) {
-		return errors.New(fmt.Sprintf("request is timed out: timestamp from request: %v | current time before %v minutes: %v | current time in %v minutes: %v",
-			timestampHeaderValue.Format(time.RFC3339),
-			signer.timeDifferenzInMinute,
-			timeBeforTimestamp.Format(time.RFC3339),
-			signer.timeDifferenzInMinute,
-			timeAfterTimestamp.Format(time.RFC3339),
-		))
+		return errors.New(fmt.Sprintf("request is timed out: timestamp from request: %v, current time: %v", timestampHeaderValue.Format(time.RFC3339), timeNow.Format(time.RFC3339)))
 	}
 	return nil
 }
@@ -141,7 +138,7 @@ func (signer *requestSigner) getHexHashForNormalizedHeaders(req *http.Request) (
 		return "", err
 	}
 
-	signedHeaders := strings.Split(req.Header.Get("x-dv-signed-headers"), ",")
+	signedHeaders := strings.Split(req.Header.Get(signatureHeaderKey), ",")
 	sort.Strings(signedHeaders)
 	normalizedHeaders := []string{}
 	for _, name := range signedHeaders {
