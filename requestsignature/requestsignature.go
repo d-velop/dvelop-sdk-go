@@ -1,10 +1,12 @@
-package requestsigner
+package requestsignature
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,17 +18,60 @@ import (
 	"time"
 )
 
-type RequestSigner interface {
+type RequestSignatureValidator interface {
 	ValidateSignedRequest(req *http.Request) error
 }
 
-// The DvelopLifeCycleEventPath is path of an app endpoint, that apps must be provide
+// the DvelopLifeCycleEventPath is path of an app endpoint, that apps must be provide
 const DvelopLifeCycleEventPath = "dvelop-cloud-lifecycle-event"
+
+// header who contains relevant headers for signature
 const signatureHeaderKey = "x-dv-signature-headers"
+
+// valid time differenz of request
 const timeDiff = 5 * time.Minute
 
-// validate signed request as middleware
-func HandleSignMiddleware(appSecret []byte, timeNow func() time.Time) func(http.Handler) http.Handler {
+// Validate signature of request i.e. for event handling
+// The middleware "HandleSignaturValidation" checks the signature of incoming requests. This is important for
+// cloud center to app authentication. The cloudcenter make an POST request to app with a signature. The middleware
+// checks if request is a POST request and the content-type header is set to "application/json".
+// If the requested signature is valid, then your handler is invoke to handle http events from cloud center. If the
+// signature is invalid, the middleware returns the HTTP error 403 "Forbidden" and log the reason to your application log.
+//
+// The parameter for the "appSecret" is the base64 decoded app secret string of your app as byte array.
+//
+// More information about signature algorithm please visit the following documentation:
+// 	https://portal.d-velop.de/documentation/ccapi/de/cloudcenter-api-197757199.html
+//
+// Example:
+//	func main() {
+//		// replace `Zm9vYmFy` with your app secret (base64-string)
+//		myAppSecret, err := base64.StdEncoding.DecodeString(`Zm9vYmFy`)
+//		if err != nil {
+//			panic(err)
+//		}
+//		mux := http.NewServeMux()
+//		mux.Handle("/app/dvelop-cloud-lifecycle-event", requestsignatur.HandleSignaturValidation(myAppSecret, time.Now)(eventHandler()))
+//	}
+//
+//	func eventHandler() http.Handler {
+//		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+//			eventDto := &struct {
+//				EventType string `json:"type"`
+//				TenantId  string `json:"tenantId"`
+//				BaseUri   string `json:"baseUri"`
+//			}{}
+//			err := json.NewDecoder(req.Body).Decode(eventDto)
+//			if err != nil {
+//				log.Print(err)
+//				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+//				return
+//			}
+//			doSomeStuff(eventDto)
+//		})
+//	}
+
+func HandleSignaturValidation(appSecret []byte, timeNow func() time.Time) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if appSecret == nil {
@@ -44,14 +89,14 @@ func HandleSignMiddleware(appSecret []byte, timeNow func() time.Time) func(http.
 				http.Error(rw, "wrong life cylce path", http.StatusBadRequest)
 				return
 			}
-			validAcceptHeaderValue := "application/json"
-			if accept := req.Header.Get("accept"); accept != validAcceptHeaderValue {
-				log.Printf("wrong accept header found. Got %v want %v", accept, validAcceptHeaderValue)
+			validContentTypeHeaderValue := "application/json"
+			if accept := req.Header.Get("content-type"); accept != validContentTypeHeaderValue {
+				log.Printf("wrong content-type header found. Got %v want %v", accept, validContentTypeHeaderValue)
 				http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 
-			signer := NewRequestSigner(appSecret, timeNow)
+			signer := NewRequestSignaturValidator(appSecret, timeNow)
 			err := signer.ValidateSignedRequest(req)
 			if err != nil {
 				log.Print("validate signed request failed: ", err)
@@ -62,27 +107,27 @@ func HandleSignMiddleware(appSecret []byte, timeNow func() time.Time) func(http.
 	}
 }
 
-type requestSigner struct {
+type requestSignaturValidator struct {
 	appSecret []byte
 	now       func() time.Time
 }
 
-func NewRequestSigner(appSecret []byte, timeNow func() time.Time) RequestSigner {
-	return &requestSigner{
+func NewRequestSignaturValidator(appSecret []byte, timeNow func() time.Time) RequestSignatureValidator {
+	return &requestSignaturValidator{
 		appSecret,
 		timeNow,
 	}
 }
 
 // validate signed request as function
-func (signer *requestSigner) ValidateSignedRequest(req *http.Request) error {
+// todo: write description of function with example code
+func (signer *requestSignaturValidator) ValidateSignedRequest(req *http.Request) error {
 	if signer.appSecret == nil {
 		return errors.New("app secret has not been configured")
 	}
-
-	validAcceptHeaderValue := "application/json"
-	if accept := req.Header.Get("accept"); accept != validAcceptHeaderValue {
-		return errors.New(fmt.Sprintf("wrong accept header found. Got %v want %v", accept, validAcceptHeaderValue))
+	validContentTypeHeaderValue := "application/json"
+	if accept := req.Header.Get("content-type"); accept != validContentTypeHeaderValue {
+		return errors.New(fmt.Sprintf("wrong accept header found. Got %v want %v", accept, validContentTypeHeaderValue))
 	}
 
 	bearerRegex := regexp.MustCompile(`(?m)^(Bearer [[:xdigit:]]+)$`)
@@ -111,7 +156,7 @@ func (signer *requestSigner) ValidateSignedRequest(req *http.Request) error {
 	return nil
 }
 
-func (signer *requestSigner) validateTimestamp(req *http.Request) error {
+func (signer *requestSignaturValidator) validateTimestamp(req *http.Request) error {
 	timestampHeaderValue, err := time.Parse(time.RFC3339, req.Header.Get("x-dv-signature-timestamp"))
 	if err != nil {
 		return err
@@ -125,17 +170,28 @@ func (signer *requestSigner) validateTimestamp(req *http.Request) error {
 	return nil
 }
 
-func (signer *requestSigner) getHexHashForNormalizedHeaders(req *http.Request) (string, error) {
+func (signer *requestSignaturValidator) getHexHashForNormalizedHeaders(req *http.Request) (string, error) {
 	if req.Body == nil {
 		return "", errors.New("payload missing")
 	}
-	bodyReader, err := req.GetBody()
-	if err != nil {
-		return "", err
-	}
-	body, err := ioutil.ReadAll(bodyReader)
-	if err != nil {
-		return "", err
+	var body []byte
+	var err error
+	if req.GetBody != nil {
+		var bodyReader io.Reader
+		bodyReader, err = req.GetBody()
+		if err != nil {
+			return "", err
+		}
+		body, err = ioutil.ReadAll(bodyReader)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		body, err = ioutil.ReadAll(req.Body)
+		if err != nil {
+			return "", err
+		}
+		req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	}
 
 	signedHeaders := strings.Split(req.Header.Get(signatureHeaderKey), ",")
@@ -149,7 +205,7 @@ func (signer *requestSigner) getHexHashForNormalizedHeaders(req *http.Request) (
 	normalizedRequest = append(normalizedRequest, req.Method)
 	normalizedRequest = append(normalizedRequest, req.URL.Path)
 	normalizedRequest = append(normalizedRequest, req.URL.RawQuery)
-	normalizedRequest = append(normalizedRequest, strings.Join(normalizedHeaders, "\n"))
+	normalizedRequest = append(normalizedRequest, fmt.Sprintf("%v\n", strings.Join(normalizedHeaders, "\n")))
 	normalizedRequest = append(normalizedRequest, signer.getHexHashedPayload(body))
 
 	strNormalizedRequest := strings.Join(normalizedRequest, "\n")
@@ -157,12 +213,12 @@ func (signer *requestSigner) getHexHashForNormalizedHeaders(req *http.Request) (
 	return strings.ToLower(fmt.Sprintf("%x", hashNormalizedRequest)), nil
 }
 
-func (signer *requestSigner) getHexHashedPayload(payload []byte) string {
+func (signer *requestSignaturValidator) getHexHashedPayload(payload []byte) string {
 	hash := sha256.Sum256(payload)
 	return strings.ToLower(fmt.Sprintf("%x", hash))
 }
 
-func (signer *requestSigner) getHmacHash(normalizedRequestHash string) string {
+func (signer *requestSignaturValidator) getHmacHash(normalizedRequestHash string) string {
 	hmacHash := hmac.New(sha256.New, signer.appSecret)
 	hmacHash.Write([]byte(normalizedRequestHash))
 	hmacResult := hmacHash.Sum(nil)

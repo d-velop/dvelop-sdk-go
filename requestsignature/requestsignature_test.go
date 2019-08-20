@@ -1,14 +1,15 @@
-package requestsigner_test
+package requestsignature_test
 
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/d-velop/dvelop-sdk-go/requestsigner"
+	"github.com/d-velop/dvelop-sdk-go/requestsignature"
 )
 
 const timestampHeader = "x-dv-signature-timestamp"
@@ -24,11 +25,11 @@ func TestHandleSignMiddleware_HappyPath_Works(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	req.Header.Set(timestampHeader, "2019-08-16T12:00:27Z")
 	req.Header.Set(algorithmHeader, algorithm)
 	req.Header.Set(signedHeadersHeader, "x-dv-signature-timestamp,x-dv-signature-algorithm,x-dv-signature-headers")
-	req.Header.Set(authorizationHeader, "Bearer 1ed80bcfdfdd67455413fa4a2b47e013aca9f1a846501f545931bead0e21cb12")
+	req.Header.Set(authorizationHeader, "Bearer 9174da8f8b1b2ce1acb7cee0b412b4f15c882746a420f8ca1ca955823d13becc")
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 
@@ -37,7 +38,7 @@ func TestHandleSignMiddleware_HappyPath_Works(t *testing.T) {
 		return time.Date(2019, time.August, 16, 14, 00, 27, 0, location)
 	}
 
-	requestsigner.HandleSignMiddleware([]byte("foobar"), timeNow)(&handlerSpy).ServeHTTP(responseSpy, req)
+	requestsignature.HandleSignaturValidation([]byte("foobar"), timeNow)(&handlerSpy).ServeHTTP(responseSpy, req)
 	if err := responseSpy.assertStatusCodeIs(200); err != nil {
 		t.Error(err)
 	}
@@ -47,7 +48,7 @@ func TestHandleSignMiddleware_AppSecretNotSet_Returns500(t *testing.T) {
 	req, _ := http.NewRequest("GET", "https://foobar.com", nil)
 	h := handlerSpy{}
 	w := responseSpy{httptest.NewRecorder()}
-	requestsigner.HandleSignMiddleware(nil, nil)(&h).ServeHTTP(w, req)
+	requestsignature.HandleSignaturValidation(nil, nil)(&h).ServeHTTP(w, req)
 	if err := w.assertStatusCodeIs(500); err != nil {
 		t.Error(err)
 	}
@@ -58,7 +59,7 @@ func TestHandleSignMiddleware_WrongHttpMethodIsUsed_Returns405(t *testing.T) {
 	req, _ := http.NewRequest("GET", "https://foobar.com", nil)
 	h := handlerSpy{}
 	w := responseSpy{httptest.NewRecorder()}
-	requestsigner.HandleSignMiddleware([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
+	requestsignature.HandleSignaturValidation([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
 	if err := w.assertStatusCodeIs(405); err != nil {
 		t.Error(err)
 	}
@@ -69,7 +70,7 @@ func TestHandleSignMiddleware_PathIsNotLifeCylceEventPath_Returns400(t *testing.
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
 	h := handlerSpy{}
 	w := responseSpy{httptest.NewRecorder()}
-	requestsigner.HandleSignMiddleware([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
+	requestsignature.HandleSignaturValidation([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
 	if err := w.assertStatusCodeIs(400); err != nil {
 		t.Error(err)
 	}
@@ -80,7 +81,7 @@ func TestHandleSignMiddleware_WrongAcceptHeaderUsed_Returns400(t *testing.T) {
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar/dvelop-cloud-lifecycle-event", nil)
 	h := handlerSpy{}
 	w := responseSpy{httptest.NewRecorder()}
-	requestsigner.HandleSignMiddleware([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
+	requestsignature.HandleSignaturValidation([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
 	if err := w.assertStatusCodeIs(400); err != nil {
 		t.Error(err)
 	}
@@ -89,10 +90,10 @@ func TestHandleSignMiddleware_WrongAcceptHeaderUsed_Returns400(t *testing.T) {
 // wrong sign found
 func TestHandleSignMiddleware_RequestHasInvalidSignature_Returns403(t *testing.T) {
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar/dvelop-cloud-lifecycle-event", nil)
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	h := handlerSpy{}
 	w := responseSpy{httptest.NewRecorder()}
-	requestsigner.HandleSignMiddleware([]byte("foobar"), time.Now)(&h).ServeHTTP(w, req)
+	requestsignature.HandleSignaturValidation([]byte("foobar"), time.Now)(&h).ServeHTTP(w, req)
 	if err := w.assertStatusCodeIs(403); err != nil {
 		t.Error(err)
 	}
@@ -125,21 +126,30 @@ func TestRequestSigner_ValidateSignedRequest_HappyPath_Works(t *testing.T) {
 	}
 	dto := `{"type": "subscribe","tenantId":"vw","baseUri":"https://mycloud.d-velop.cloud"}`
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", bytes.NewBuffer([]byte(dto)))
-	req.Header.Set("accept", "application/json")
-	req.Header.Set("Authorization", "Bearer 997bb670e6c61ed1de186c68d7016e01a67045353be9908fa5c53df61507559c")
+	req.Header.Set("content-type", "application/json")
+	req.Header.Set("Authorization", "Bearer bb7f9f2c18785bd4c28ab3ea298d19c7960032cad8307d2d6c42bba9051d3aec")
 	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:39:27Z")
 	req.Header.Set("x-dv-signature-headers", "x-dv-signuature-headers, x-dv-signature-algorithm, x-dv-signature-timestamp")
 	req.Header.Set("x-dv-signature-algorithm", "DV1-HMAC-SHA256")
 
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), getNow)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err != nil {
 		t.Errorf("no error expected but got error %v", err)
 	}
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		t.Errorf("get body after validate request failed: %v", err)
+		return
+	}
+	if strBody := string(body); strBody != dto {
+		t.Errorf("wrong body found after validate request: got %v want %v", strBody, dto)
+	}
+
 }
 
 func TestRequestSigner_ValidateSignedRequest_AppSecretNotConfigured_ReturnsError(t *testing.T) {
-	requestSigner := requestsigner.NewRequestSigner(nil, nil)
+	requestSigner := requestsignature.NewRequestSignaturValidator(nil, nil)
 	err := requestSigner.ValidateSignedRequest(nil)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -152,7 +162,7 @@ func TestRequestSigner_ValidateSignedRequest_AppSecretNotConfigured_ReturnsError
 // invalid accept header
 func TestRequestSigner_ValidateSignedRequest_WrongAcceptHeaderInRequest_ReturnsError(t *testing.T) {
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), nil)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), nil)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -165,8 +175,8 @@ func TestRequestSigner_ValidateSignedRequest_WrongAcceptHeaderInRequest_ReturnsE
 // authorization header missing on request
 func TestRequestSigner_ValidateSignedRequest_AuthorizationHeaderMissingInRequest_ReturnsError(t *testing.T) {
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("accept", "application/json")
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), nil)
+	req.Header.Set("content-type", "application/json")
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), nil)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -179,9 +189,9 @@ func TestRequestSigner_ValidateSignedRequest_AuthorizationHeaderMissingInRequest
 // invalid bearer token found
 func TestRequestSigner_ValidateSignedRequest_AuthorizationBearerTokenInvalid_ReturnsError(t *testing.T) {
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer foobar")
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), nil)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), nil)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -199,11 +209,11 @@ func TestRequestSigner_ValidateSignedRequest_TimestampIs10MinutesInThePast_Retur
 	}
 
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer 0adf")
 	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:29:27Z")
 
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), getNow)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -221,11 +231,11 @@ func TestRequestSigner_ValidateSignedRequest_TimestampIs10MinutesInTheFuture_Ret
 	}
 
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer 0adf")
 	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:49:27Z")
 
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), getNow)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -243,11 +253,11 @@ func TestRequestSigner_ValidateSignedRequest_PayloadMissingInRequest_ReturnsErro
 	}
 
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer 0adf")
 	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:39:27Z")
 
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), getNow)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
@@ -265,19 +275,19 @@ func TestRequestSigner_ValidateSignedRequest_InvalidAuthorizationBearerToken_Ret
 	}
 	dto := `{"type": "subscribe","tenantId":"vw","baseUri":"https://mycloud.d-velop.cloud"}`
 	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", bytes.NewBuffer([]byte(dto)))
-	req.Header.Set("accept", "application/json")
+	req.Header.Set("content-type", "application/json")
 	req.Header.Set("Authorization", "Bearer 0adf")
 	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:39:27Z")
 	req.Header.Set("x-dv-signature-headers", "x-dv-signuature-headers, x-dv-signature-algorithm, x-dv-signature-timestamp")
 	req.Header.Set("x-dv-signature-algorithm", "DV1-HMAC-SHA256")
 
-	requestSigner := requestsigner.NewRequestSigner([]byte("foobar"), getNow)
+	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
 	err := requestSigner.ValidateSignedRequest(req)
 	if err == nil {
 		t.Errorf("error expected but no error returned")
 		return
 	}
-	if expectedError := "wrong authorization header. Got 0adf want 997bb670e6c61ed1de186c68d7016e01a67045353be9908fa5c53df61507559c"; err.Error() != expectedError {
+	if expectedError := "wrong authorization header. Got 0adf want bb7f9f2c18785bd4c28ab3ea298d19c7960032cad8307d2d6c42bba9051d3aec"; err.Error() != expectedError {
 		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
 	}
 }
