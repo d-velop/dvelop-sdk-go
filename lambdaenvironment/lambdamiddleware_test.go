@@ -20,7 +20,7 @@ func TestRequestToNamedAlias_ReturnsAliasFromArn(t *testing.T) {
 	})
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx()(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
+	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -42,7 +42,7 @@ func TestRequestToVersionNumber_ReturnsVersionFromArn(t *testing.T) {
 	})
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx()(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
+	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -64,7 +64,7 @@ func TestRequestToArnWithoutQualifier_ReturnsEmptyString(t *testing.T) {
 	})
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx()(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
+	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -83,7 +83,7 @@ func TestRequestWithoutLambdaContext_ReturnsEmptyString(t *testing.T) {
 
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx()(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")

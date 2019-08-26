@@ -1,11 +1,6 @@
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/aws/aws-lambda-go v1.13.0 h1:yjvZBGAxmrVQnakZ6/SE2S6L7Iwyx4CkJEcCQCc7WtU=
 github.com/aws/aws-lambda-go v1.13.0/go.mod h1:z4ywteZ5WwbIEzG0tXizIAUlUwkTNNknX4upd5Z5XJM=
-github.com/d-velop/dvelop-sdk-go/idp v0.0.0-20190816115847-198895963ddc h1:8shNTszZkyRrHaqJddcEBU3S4hvQ8UrqLjNXYFpLZ9I=
-github.com/d-velop/dvelop-sdk-go/idp v0.0.0-20190816115847-198895963ddc/go.mod h1:5QIi4aF/LsVOQ3vwcnKX9OdICQhdeaGlBmP5Bg+3ZyE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
-github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
