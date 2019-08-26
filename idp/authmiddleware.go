@@ -22,6 +22,7 @@ type contextKey string
 
 const principalKey = contextKey("Principal")
 const authSessionIdKey = contextKey("AuthSessionId")
+const userNameSuffixForApps = "@app.idp.d-velop.local"
 
 // HandleAuth authenticates the user using the IdentityProviderApp
 //
@@ -286,6 +287,11 @@ func PrincipalFromCtx(ctx context.Context) (scim.Principal, error) {
 		return scim.Principal{}, errors.New("no principal on context")
 	}
 	return principal, nil
+}
+
+func AppFromCtx( ctx context.Context) (string, bool) {
+	p, _ := PrincipalFromCtx(ctx)
+	return p.App()
 }
 
 func AuthSessionIdFromCtx(ctx context.Context) (string, error) {

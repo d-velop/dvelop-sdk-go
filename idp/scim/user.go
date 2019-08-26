@@ -6,6 +6,7 @@ package scim
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
