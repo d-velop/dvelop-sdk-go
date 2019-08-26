@@ -6,6 +6,11 @@ package scim
 
 import (
 	"encoding/json"
+	"strings"
+)
+
+const (
+	userNameSuffixForApps = "@app.idp.d-velop.local"
 )
 
 // Principal represents a user.
@@ -68,6 +73,14 @@ type Principal struct {
 func (p Principal) String() string {
 	b, _ := json.Marshal(p)
 	return string(b)
+}
+
+func (p Principal) App() (string, bool) {
+	if strings.HasSuffix(p.UserName, userNameSuffixForApps) {
+		return strings.TrimSuffix(p.UserName, userNameSuffixForApps), true
+	} else {
+		return "", false
+	}
 }
 
 type UserName struct {
