@@ -599,7 +599,7 @@ func TestRequestAsExternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	}
 }
 
-func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
+func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWithAppPrincipalAndAuthsession(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -617,6 +617,29 @@ func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 		t.Error(err)
 	}
 	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestAsApp_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const authSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWasdfJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	principal := scim.Principal{Id: "some-app@app.idp.d-velop.local"}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	handlerSpy := new(handlerSpy)
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	defer idpStub.Close()
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
+		t.Error(err)
+	}
+
+	if err := handlerSpy.assertPrincipalIsApp("some-app"); err != nil {
 		t.Error(err)
 	}
 }
@@ -752,12 +775,15 @@ type handlerSpy struct {
 	authSessionId string
 	prinicpal     scim.Principal
 	hasBeenCalled bool
+	app           string
+	isApp         bool
 }
 
 func (spy *handlerSpy) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	spy.hasBeenCalled = true
 	spy.authSessionId, _ = idp.AuthSessionIdFromCtx(r.Context())
 	spy.prinicpal, _ = idp.PrincipalFromCtx(r.Context())
+	spy.app, spy.isApp = idp.AppFromCtx(r.Context())
 }
 
 func (spy *handlerSpy) assertAuthSessionIdIs(expectedAuthSessionID string) error {
@@ -770,6 +796,16 @@ func (spy *handlerSpy) assertAuthSessionIdIs(expectedAuthSessionID string) error
 func (spy *handlerSpy) assertPrincipalIs(expectedPrincipal scim.Principal) error {
 	if !reflect.DeepEqual(spy.prinicpal, expectedPrincipal) {
 		return fmt.Errorf("handler set wrong principal on context: got \n %v want\n %v", spy.prinicpal, expectedPrincipal)
+	}
+	return nil
+}
+
+func (spy *handlerSpy) assertPrincipalIsApp(expectedApp string) error {
+	if !spy.isApp {
+		return fmt.Errorf("handler set non-app principal, got %+v", spy.prinicpal)
+	}
+	if spy.app != expectedApp {
+		return fmt.Errorf("handler set wrong app, got %v, want %v", spy.app, expectedApp)
 	}
 	return nil
 }

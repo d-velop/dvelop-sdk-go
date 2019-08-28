@@ -295,3 +295,11 @@ func AuthSessionIdFromCtx(ctx context.Context) (string, error) {
 	}
 	return authSessionId, nil
 }
+
+func AppFromCtx(ctx context.Context) (string, bool) {
+	if principal, err := PrincipalFromCtx(ctx); err == nil {
+		return principal.App()
+	} else {
+		return "", false
+	}
+}

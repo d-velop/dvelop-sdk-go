@@ -22,3 +22,16 @@ func TestCanDeserializeSCIMUser(t *testing.T) {
 		t.Errorf("Unmarshaled Object wrong: got \n %v want\n %v", u, donaldDuck)
 	}
 }
+
+func TestUserHasAppId_ReturnsApp( t *testing.T) {
+	principal := scim.Principal{Id: "some-app@app.idp.d-velop.local"}
+	app, isApp := principal.App()
+
+	if !isApp {
+		t.Errorf("expected isApp = true, got false")
+	}
+
+	if app != "some-app" {
+		t.Errorf("expected app = 'some-app', got %v", app)
+	}
+}
