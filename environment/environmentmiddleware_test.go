@@ -1,7 +1,7 @@
 package environment_test
 
 import (
-	"github.com/d-velop/dvelop-sdk-go/lambdaenvironment"
+	"github.com/d-velop/dvelop-sdk-go/environment"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,7 +31,6 @@ func TestRequestWithEnvironmentFunction_UsesReturnedEnvironment(t *testing.T) {
 	}
 }
 
-
 func TestRequestWithoutMiddleware_GetterReturnsEmptyString(t *testing.T) {
 	req, err := http.NewRequest("GET", "/somewhere", nil)
 	if err != nil {
@@ -50,7 +49,6 @@ func TestRequestWithoutMiddleware_GetterReturnsEmptyString(t *testing.T) {
 		t.Errorf("middleware returned wrong environment: got '%v', want '%v'", handlerSpy.environment, "")
 	}
 }
-
 
 type handlerSpy struct {
 	hasBeenCalled bool
