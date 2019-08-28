@@ -599,7 +599,7 @@ func TestRequestAsExternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	}
 }
 
-func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWithAppPrincipalAndAuthsession(t *testing.T) {
+func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -639,7 +639,30 @@ func TestRequestAsApp_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) 
 		t.Error(err)
 	}
 
-	if err := handlerSpy.assertPrincipalIsApp("some-app"); err != nil {
+	if err := handlerSpy.assertPrincipalIsApp(true, "some-app"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestAsNonApp_RequestAppPrincipal_ReturnsNoApp(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const authSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p6pHA/x7CEi1w9egVhEMz8IWasdfJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	principal := scim.Principal{Id: "7bbcf1b6-017a-449a-ad5f-9723d28223e1"}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	handlerSpy := new(handlerSpy)
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	defer idpStub.Close()
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
+		t.Error(err)
+	}
+
+	if err := handlerSpy.assertPrincipalIsApp(false, ""); err != nil {
 		t.Error(err)
 	}
 }
@@ -800,9 +823,9 @@ func (spy *handlerSpy) assertPrincipalIs(expectedPrincipal scim.Principal) error
 	return nil
 }
 
-func (spy *handlerSpy) assertPrincipalIsApp(expectedApp string) error {
-	if !spy.isApp {
-		return fmt.Errorf("handler set non-app principal, got %+v", spy.prinicpal)
+func (spy *handlerSpy) assertPrincipalIsApp(expectIsApp bool, expectedApp string) error {
+	if spy.isApp != expectIsApp {
+		return fmt.Errorf("handler set isApp = '%v', want '%v'", spy.isApp, expectIsApp)
 	}
 	if spy.app != expectedApp {
 		return fmt.Errorf("handler set wrong app, got %v, want %v", spy.app, expectedApp)
