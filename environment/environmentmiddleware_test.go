@@ -1,4 +1,4 @@
-package lambdaenvironment_test
+package environment_test
 
 import (
 	"context"
@@ -9,7 +9,31 @@ import (
 	"testing"
 )
 
-func TestRequestToNamedAlias_ReturnsAliasFromArn(t *testing.T) {
+func TestRequestWithEnvironmentFunction_UsesReturnedEnvironment(t *testing.T) {
+	req, err := http.NewRequest("GET", "/somewhere", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handlerSpy := handlerSpy{}
+
+	expectedEnvironment := "some-environment"
+
+	environmentFunc := func(request http.Request) string {
+		return expectedEnvironment
+	}
+	environment.AddToCtx(environmentFunc)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if !handlerSpy.hasBeenCalled {
+		t.Error("inner handler should have been called")
+	}
+
+	if handlerSpy.environment != expectedEnvironment {
+		t.Errorf("middleware returned wrong environment: got %v, want %v", handlerSpy.environment, expectedEnvironment)
+	}
+}
+
+func TestRequestToNamedLambdaAlias_ReturnsAliasFromArn(t *testing.T) {
 	req, err := http.NewRequest("GET", "/somewhere", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -20,7 +44,7 @@ func TestRequestToNamedAlias_ReturnsAliasFromArn(t *testing.T) {
 	})
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
+	environment.AddToCtx(environment.FromLambdaContext)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -31,7 +55,7 @@ func TestRequestToNamedAlias_ReturnsAliasFromArn(t *testing.T) {
 	}
 }
 
-func TestRequestToVersionNumber_ReturnsVersionFromArn(t *testing.T) {
+func TestRequestToLambdaVersionNumber_ReturnsVersionFromArn(t *testing.T) {
 	req, err := http.NewRequest("GET", "/somewhere", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +66,7 @@ func TestRequestToVersionNumber_ReturnsVersionFromArn(t *testing.T) {
 	})
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
+	environment.AddToCtx(environment.FromLambdaContext)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -53,7 +77,7 @@ func TestRequestToVersionNumber_ReturnsVersionFromArn(t *testing.T) {
 	}
 }
 
-func TestRequestToArnWithoutQualifier_ReturnsEmptyString(t *testing.T) {
+func TestRequestToLambdaArnWithoutQualifier_ReturnsEmptyString(t *testing.T) {
 	req, err := http.NewRequest("GET", "/somewhere", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +88,7 @@ func TestRequestToArnWithoutQualifier_ReturnsEmptyString(t *testing.T) {
 	})
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
+	environment.AddToCtx(environment.FromLambdaContext)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req.WithContext(ctx))
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -75,7 +99,7 @@ func TestRequestToArnWithoutQualifier_ReturnsEmptyString(t *testing.T) {
 	}
 }
 
-func TestRequestWithoutLambdaContext_ReturnsEmptyString(t *testing.T) {
+func TestRequestForLambdaWithoutLambdaContext_ReturnsEmptyString(t *testing.T) {
 	req, err := http.NewRequest("GET", "/somewhere", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -83,7 +107,7 @@ func TestRequestWithoutLambdaContext_ReturnsEmptyString(t *testing.T) {
 
 	handlerSpy := handlerSpy{}
 
-	lambdaenvironment.AddEnvironmentToCtx(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	environment.AddToCtx(environment.FromLambdaContext)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if !handlerSpy.hasBeenCalled {
 		t.Error("inner handler should have been called")
@@ -101,5 +125,5 @@ type handlerSpy struct {
 
 func (spy *handlerSpy) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	spy.hasBeenCalled = true
-	spy.environment = lambdaenvironment.EnvironmentFromCtx(r.Context())
+	spy.environment = environment.Get(r.Context())
 }

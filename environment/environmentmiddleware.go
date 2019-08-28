@@ -1,4 +1,4 @@
-package lambdaenvironment
+package environment
 
 import (
 	"context"
@@ -13,19 +13,26 @@ const environmentKey = contextKey("FeatureToggleEnvironment")
 
 type GetEnvironmentFromRequestFunc func(http.Request) string
 
-// AddEnvironmentToCtx retrieves the current lambda alias/version and adds it to the context.
+// AddToCtx retrieves the current lambda alias/version and adds it to the context.
 //
 // You can use this to implement feature toggles that are dependent on the environment.
 //
 // Example:
 //  func main() {
+//    environmentFunc := func(request http.Request) string {
+//    	if strings.HasPrefix(request.URL.Host, "dev.") {
+//    	  return "dev"
+//      } else {
+//    	  return "prod"
+//      }
+//    }
 //    mux := http.NewServeMux()
-//    mux.Handle("/hello", lambdaenvironment.AddEnvironmentToCtx(someHandler()))
+//    mux.Handle("/hello", environment.AddToCtx(environmentFunc)(someHandler()))
 //  }
 //
 //  func someHandler() http.Handler {
 //    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//      environment := lambdaenvironment.EnvironmentFromCtx(r.Context())
+//      environment := environment.Get(r.Context())
 //      if environment == "dev" {
 //        fmt.Fprint(w, "Hey, here are some new features")
 //      } else {
@@ -33,26 +40,42 @@ type GetEnvironmentFromRequestFunc func(http.Request) string
 //      }
 //    })
 //  }
-func AddEnvironmentToCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
+//
+// Or if you are running in lambda and want to use :
+//  func main() {
+//    mux := http.NewServeMux()
+//    mux.Handle("/hello", environment.AddToCtx(environment.FromLambdaContext)(someHandler()))
+//  }
+func AddToCtx(getEnvironmentFromRequest GetEnvironmentFromRequestFunc) func(next http.Handler) http.Handler {
 
-		if lc, success := lambdacontext.FromContext(ctx); success {
-			arn := lc.InvokedFunctionArn
-			arnParts := strings.Split(arn, ":")
-			if len(arnParts) == 8 {
-				ctx = context.WithValue(ctx, environmentKey, arnParts[7])
-			}
-		}
-
-		next.ServeHTTP(w, req.WithContext(ctx))
-	})
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := req.Context()
+			environmentFromRequest := getEnvironmentFromRequest(*req)
+			ctx = context.WithValue(ctx, environmentKey, environmentFromRequest)
+			next.ServeHTTP(w, req.WithContext(ctx))
+		})
+	}
 }
 
-func EnvironmentFromCtx(ctx context.Context) string {
+func Get(ctx context.Context) string {
 	value, ok := ctx.Value(environmentKey).(string)
 	if !ok {
 		return ""
 	}
 	return value
+}
+
+func FromLambdaContext(req http.Request) string {
+	ctx := req.Context()
+
+	if lc, success := lambdacontext.FromContext(ctx); success {
+		arn := lc.InvokedFunctionArn
+		arnParts := strings.Split(arn, ":")
+		if len(arnParts) == 8 {
+			return arnParts[7]
+		}
+	}
+
+	return ""
 }
