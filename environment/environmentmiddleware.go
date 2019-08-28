@@ -2,9 +2,7 @@ package environment
 
 import (
 	"context"
-	"github.com/aws/aws-lambda-go/lambdacontext"
 	"net/http"
-	"strings"
 )
 
 type contextKey string
@@ -42,9 +40,10 @@ type GetEnvironmentFromRequestFunc func(http.Request) string
 //  }
 //
 // Or if you are running in lambda and want to use your lambda aliases:
+//  import "github.com/d-velop/dvelop-sdk-go/lambda"
 //  func main() {
 //    mux := http.NewServeMux()
-//    mux.Handle("/hello", environment.AddToCtx(environment.FromLambdaContext)(someHandler()))
+//    mux.Handle("/hello", environment.AddToCtx(lambda.GetAliasFromRequest)(someHandler()))
 //  }
 func AddToCtx(getEnvironmentFromRequest GetEnvironmentFromRequestFunc) func(next http.Handler) http.Handler {
 
@@ -64,18 +63,4 @@ func Get(ctx context.Context) string {
 		return ""
 	}
 	return value
-}
-
-func FromLambdaContext(req http.Request) string {
-	ctx := req.Context()
-
-	if lc, success := lambdacontext.FromContext(ctx); success {
-		arn := lc.InvokedFunctionArn
-		arnParts := strings.Split(arn, ":")
-		if len(arnParts) == 8 {
-			return arnParts[7]
-		}
-	}
-
-	return ""
 }
