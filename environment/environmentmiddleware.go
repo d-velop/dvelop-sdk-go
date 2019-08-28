@@ -11,6 +11,8 @@ type contextKey string
 
 const environmentKey = contextKey("FeatureToggleEnvironment")
 
+type GetEnvironmentFromRequestFunc func(http.Request) string
+
 // AddEnvironmentToCtx retrieves the current lambda alias/version and adds it to the context.
 //
 // You can use this to implement feature toggles that are dependent on the environment.
