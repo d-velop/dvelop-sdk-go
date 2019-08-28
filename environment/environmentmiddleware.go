@@ -41,7 +41,7 @@ type GetEnvironmentFromRequestFunc func(http.Request) string
 //    })
 //  }
 //
-// Or if you are running in lambda and want to use :
+// Or if you are running in lambda and want to use your lambda aliases:
 //  func main() {
 //    mux := http.NewServeMux()
 //    mux.Handle("/hello", environment.AddToCtx(environment.FromLambdaContext)(someHandler()))
