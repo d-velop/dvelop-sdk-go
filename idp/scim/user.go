@@ -73,7 +73,7 @@ func (p Principal) String() string {
 	return string(b)
 }
 
-func (p Principal) App() (string, bool) {
+func (p Principal) App() (appName string, isApp bool) {
 	if strings.HasSuffix(p.Id, appSessionIdSuffix) {
 		return strings.TrimSuffix(p.Id, appSessionIdSuffix), true
 	}
