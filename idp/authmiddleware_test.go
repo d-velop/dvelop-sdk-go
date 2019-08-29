@@ -621,6 +621,52 @@ func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	}
 }
 
+func TestRequestAsApp_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const authSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWasdfJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	principal := scim.Principal{Id: "some-app@app.idp.d-velop.local"}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	handlerSpy := new(handlerSpy)
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	defer idpStub.Close()
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
+		t.Error(err)
+	}
+
+	if err := handlerSpy.assertPrincipalIsApp(true, "some-app"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestAsNonApp_RequestAppPrincipal_ReturnsNoApp(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const authSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p6pHA/x7CEi1w9egVhEMz8IWasdfJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
+	principal := scim.Principal{Id: "7bbcf1b6-017a-449a-ad5f-9723d28223e1"}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	handlerSpy := new(handlerSpy)
+	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	defer idpStub.Close()
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+
+	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
+		t.Error(err)
+	}
+
+	if err := handlerSpy.assertPrincipalIsApp(false, ""); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestIdpSendsNoCacheHeader_CallsIdp(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
@@ -752,12 +798,15 @@ type handlerSpy struct {
 	authSessionId string
 	prinicpal     scim.Principal
 	hasBeenCalled bool
+	app           string
+	isApp         bool
 }
 
 func (spy *handlerSpy) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	spy.hasBeenCalled = true
 	spy.authSessionId, _ = idp.AuthSessionIdFromCtx(r.Context())
 	spy.prinicpal, _ = idp.PrincipalFromCtx(r.Context())
+	spy.app, spy.isApp = idp.AppFromCtx(r.Context())
 }
 
 func (spy *handlerSpy) assertAuthSessionIdIs(expectedAuthSessionID string) error {
@@ -770,6 +819,16 @@ func (spy *handlerSpy) assertAuthSessionIdIs(expectedAuthSessionID string) error
 func (spy *handlerSpy) assertPrincipalIs(expectedPrincipal scim.Principal) error {
 	if !reflect.DeepEqual(spy.prinicpal, expectedPrincipal) {
 		return fmt.Errorf("handler set wrong principal on context: got \n %v want\n %v", spy.prinicpal, expectedPrincipal)
+	}
+	return nil
+}
+
+func (spy *handlerSpy) assertPrincipalIsApp(expectIsApp bool, expectedApp string) error {
+	if spy.isApp != expectIsApp {
+		return fmt.Errorf("handler set isApp = '%v', want '%v'", spy.isApp, expectIsApp)
+	}
+	if spy.app != expectedApp {
+		return fmt.Errorf("handler set wrong app, got %v, want %v", spy.app, expectedApp)
 	}
 	return nil
 }
