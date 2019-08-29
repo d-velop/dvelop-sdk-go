@@ -35,3 +35,15 @@ func TestUserHasAppId_ReturnsApp( t *testing.T) {
 		t.Errorf("expected app = 'some-app', got %v", app)
 	}
 }
+
+func TestUserHasNonAppId_ReturnsNoApp( t *testing.T) {
+	appName, isApp := donaldDuck.App()
+
+	if isApp {
+		t.Errorf("expected isApp = false")
+	}
+
+	if appName != "" {
+		t.Errorf("expected appName = '', got appNAme = '%v'", appName)
+	}
+}
