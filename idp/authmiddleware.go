@@ -14,8 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"github.com/patrickmn/go-cache"
+
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
 type contextKey string
@@ -294,4 +295,67 @@ func AuthSessionIdFromCtx(ctx context.Context) (string, error) {
 		return "", errors.New("no authSessionId on context")
 	}
 	return authSessionId, nil
+}
+
+func PrincipalById(ctx context.Context, getSystemBaseUriFromCtx func(ctx context.Context) (string, error), requestedUserId string) (requestedUser scim.Principal, err error) {
+	if ctx == nil {
+		err = errors.New("no context provided")
+		return
+	}
+	authSessionId, err := AuthSessionIdFromCtx(ctx)
+	if err != nil {
+		return
+	}
+	systemBaseUri, err := getSystemBaseUriFromCtx(ctx)
+	if err != nil {
+		return
+	}
+	userEndpoint, err := userEndpointFor(systemBaseUri, requestedUserId)
+	if err != nil {
+		return
+	}
+	req, nRErr := http.NewRequest("GET", userEndpoint.String(), nil)
+	if nRErr != nil {
+		return scim.Principal{}, fmt.Errorf("can't create http request for '%v' because: %v", userEndpoint.String(), nRErr)
+	}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	response, doErr := httpClient.Do(req)
+	if doErr != nil {
+		return scim.Principal{}, fmt.Errorf("error calling http GET on '%v' because: %v", userEndpoint.String(), doErr)
+	}
+	defer response.Body.Close()
+
+	switch response.StatusCode {
+	case http.StatusOK:
+		requestedUser := scim.Principal{}
+		decErr := json.NewDecoder(response.Body).Decode(&requestedUser)
+		if decErr != nil {
+			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%v' is no valid JSON because: %v", userEndpoint.String(), decErr)
+		}
+		return requestedUser, nil
+	case http.StatusNotFound:
+		return scim.Principal{}, errors.New("user not found")
+	default:
+		responseMsg, err := ioutil.ReadAll(response.Body)
+		responseString := ""
+		if err == nil {
+			responseString = string(responseMsg)
+		}
+		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
+			response.Request.URL, response.StatusCode, string(responseString)))
+	}
+}
+
+func userEndpointFor(systemBaseUriString string, userId string) (*url.URL, error) {
+	userEndpointString := "/identityprovider/scim/users/" + userId
+
+	userEndpoint, vPErr := url.Parse(userEndpointString)
+	if vPErr != nil {
+		return nil, fmt.Errorf("%v", vPErr)
+	}
+	base, sBPErr := url.Parse(systemBaseUriString)
+	if sBPErr != nil {
+		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUriString, sBPErr)
+	}
+	return base.ResolveReference(userEndpoint), nil
 }
