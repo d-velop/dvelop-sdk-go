@@ -177,23 +177,23 @@ func isPrincipalExternalUser(p scim.Principal) bool {
 	return false
 }
 
-func validateEndpointFor(systemBaseUriString string, allowExternalValidation bool) (*url.URL, error) {
-	validateEndpointString := "/identityprovider/validate"
+func validateEndpointFor(systemBaseUri string, allowExternalValidation bool) (*url.URL, error) {
+	validateEndpoint := "/identityprovider/validate"
 	if allowExternalValidation {
-		validateEndpointString = fmt.Sprintf("%v?allowExternalValidation=true", validateEndpointString)
+		validateEndpoint = fmt.Sprintf("%v?allowExternalValidation=true", validateEndpoint)
 	}
-	validateEndpoint, vPErr := url.Parse(validateEndpointString)
+	validateEndpointUrl, vPErr := url.Parse(validateEndpoint)
 	if vPErr != nil {
 		return nil, fmt.Errorf("%v", vPErr)
 	}
-	base, sBPErr := url.Parse(systemBaseUriString)
+	base, sBPErr := url.Parse(systemBaseUri)
 	if sBPErr != nil {
-		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUriString, sBPErr)
+		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUri, sBPErr)
 	}
-	return base.ResolveReference(validateEndpoint), nil
+	return base.ResolveReference(validateEndpointUrl), nil
 }
 
-func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalValidation bool) (scim.Principal, error) {
+func getPrincipalFromIdp(ctx context.Context, systemBaseUri string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalValidation bool) (scim.Principal, error) {
 	cacheKey := fmt.Sprintf("%v/%v", tenantId, authSessionId)
 	co, found := userCache.Get(cacheKey)
 	if found {
@@ -202,7 +202,7 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSe
 		return p, nil
 	}
 
-	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString, allowExternalValidation)
+	validateEndpoint, vEErr := validateEndpointFor(systemBaseUri, allowExternalValidation)
 	if vEErr != nil {
 		return scim.Principal{}, vEErr
 	}
