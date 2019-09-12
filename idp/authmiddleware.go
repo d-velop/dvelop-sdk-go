@@ -300,19 +300,19 @@ func AuthSessionIdFromCtx(ctx context.Context) (string, error) {
 func PrincipalById(ctx context.Context, getSystemBaseUriFromCtx func(ctx context.Context) (string, error), requestedUserId string) (requestedUser scim.Principal, err error) {
 	if ctx == nil {
 		err = errors.New("no context provided")
-		return
+		return scim.Principal{}, err
 	}
 	authSessionId, err := AuthSessionIdFromCtx(ctx)
 	if err != nil {
-		return
+		return scim.Principal{}, err
 	}
 	systemBaseUri, err := getSystemBaseUriFromCtx(ctx)
 	if err != nil {
-		return
+		return scim.Principal{}, err
 	}
 	userEndpoint, err := userEndpointFor(systemBaseUri, requestedUserId)
 	if err != nil {
-		return
+		return scim.Principal{}, err
 	}
 	req, nRErr := http.NewRequest("GET", userEndpoint.String(), nil)
 	if nRErr != nil {
@@ -327,12 +327,11 @@ func PrincipalById(ctx context.Context, getSystemBaseUriFromCtx func(ctx context
 
 	switch response.StatusCode {
 	case http.StatusOK:
-		requestedUser := scim.Principal{}
-		decErr := json.NewDecoder(response.Body).Decode(&requestedUser)
-		if decErr != nil {
+		p := scim.Principal{}
+		if decErr := json.NewDecoder(response.Body).Decode(&p); decErr != nil {
 			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%v' is no valid JSON because: %v", userEndpoint.String(), decErr)
 		}
-		return requestedUser, nil
+		return p, nil
 	case http.StatusNotFound:
 		return scim.Principal{}, errors.New("user not found")
 	default:
@@ -341,21 +340,21 @@ func PrincipalById(ctx context.Context, getSystemBaseUriFromCtx func(ctx context
 		if err == nil {
 			responseString = string(responseMsg)
 		}
-		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
-			response.Request.URL, response.StatusCode, string(responseString)))
+		return scim.Principal{}, fmt.Errorf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
+			response.Request.URL, response.StatusCode, string(responseString))
 	}
 }
 
-func userEndpointFor(systemBaseUriString string, userId string) (*url.URL, error) {
-	userEndpointString := "/identityprovider/scim/users/" + userId
+func userEndpointFor(systemBaseUri string, userId string) (*url.URL, error) {
+	userEndpoint := "/identityprovider/scim/users/" + userId
 
-	userEndpoint, vPErr := url.Parse(userEndpointString)
+	userEndpointUrl, vPErr := url.Parse(userEndpoint)
 	if vPErr != nil {
 		return nil, fmt.Errorf("%v", vPErr)
 	}
-	base, sBPErr := url.Parse(systemBaseUriString)
+	base, sBPErr := url.Parse(systemBaseUri)
 	if sBPErr != nil {
-		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUriString, sBPErr)
+		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUri, sBPErr)
 	}
-	return base.ResolveReference(userEndpoint), nil
+	return base.ResolveReference(userEndpointUrl), nil
 }
