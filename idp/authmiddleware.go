@@ -247,13 +247,9 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUri string, authSessionI
 	case http.StatusForbidden:
 		return scim.Principal{}, errExternalValidationNotAllowed
 	default:
-		responseMsg, err := ioutil.ReadAll(response.Body)
-		responseString := ""
-		if err == nil {
-			responseString = string(responseMsg)
-		}
-		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
-			response.Request.URL, response.StatusCode, string(responseString)))
+		responseMsg, _ := ioutil.ReadAll(response.Body)
+		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message %q",
+			response.Request.URL, response.StatusCode, responseMsg))
 	}
 }
 
@@ -274,7 +270,7 @@ func authSessionIdFrom(ctx context.Context, req *http.Request, loginfo func(ctx 
 			if err != nil {
 				return "", fmt.Errorf("value '%v' of '%v'-cookie is no valid url escaped string because: %v", cookie.Value, cookie.Name, err)
 			}
-			return string(value), nil
+			return value, nil
 		}
 	}
 	loginfo(ctx, fmt.Sprintf("no AuthSessionId found because there is no bearer authorization header and no AuthSessionId Cookie\n"))
@@ -295,66 +291,4 @@ func AuthSessionIdFromCtx(ctx context.Context) (string, error) {
 		return "", errors.New("no authSessionId on context")
 	}
 	return authSessionId, nil
-}
-
-func PrincipalById(ctx context.Context, getSystemBaseUriFromCtx func(ctx context.Context) (string, error), requestedUserId string) (requestedUser scim.Principal, err error) {
-	if ctx == nil {
-		err = errors.New("no context provided")
-		return scim.Principal{}, err
-	}
-	authSessionId, err := AuthSessionIdFromCtx(ctx)
-	if err != nil {
-		return scim.Principal{}, err
-	}
-	systemBaseUri, err := getSystemBaseUriFromCtx(ctx)
-	if err != nil {
-		return scim.Principal{}, err
-	}
-	userEndpoint, err := userEndpointFor(systemBaseUri, requestedUserId)
-	if err != nil {
-		return scim.Principal{}, err
-	}
-	req, nRErr := http.NewRequest("GET", userEndpoint.String(), nil)
-	if nRErr != nil {
-		return scim.Principal{}, fmt.Errorf("can't create http request for '%v' because: %v", userEndpoint.String(), nRErr)
-	}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
-	response, doErr := httpClient.Do(req)
-	if doErr != nil {
-		return scim.Principal{}, fmt.Errorf("error calling http GET on '%v' because: %v", userEndpoint.String(), doErr)
-	}
-	defer response.Body.Close()
-
-	switch response.StatusCode {
-	case http.StatusOK:
-		p := scim.Principal{}
-		if decErr := json.NewDecoder(response.Body).Decode(&p); decErr != nil {
-			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%v' is no valid JSON because: %v", userEndpoint.String(), decErr)
-		}
-		return p, nil
-	case http.StatusNotFound:
-		return scim.Principal{}, errors.New("user not found")
-	default:
-		responseMsg, err := ioutil.ReadAll(response.Body)
-		responseString := ""
-		if err == nil {
-			responseString = string(responseMsg)
-		}
-		return scim.Principal{}, fmt.Errorf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
-			response.Request.URL, response.StatusCode, string(responseString))
-	}
-}
-
-func userEndpointFor(systemBaseUri string, userId string) (*url.URL, error) {
-	userEndpoint := "/identityprovider/scim/users/" + userId
-
-	userEndpointUrl, vPErr := url.Parse(userEndpoint)
-	if vPErr != nil {
-		return nil, fmt.Errorf("%v", vPErr)
-	}
-	base, sBPErr := url.Parse(systemBaseUri)
-	if sBPErr != nil {
-		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUri, sBPErr)
-	}
-	return base.ResolveReference(userEndpointUrl), nil
 }
