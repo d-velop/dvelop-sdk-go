@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
