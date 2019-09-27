@@ -31,17 +31,17 @@ const signatureHeaderKey = "x-dv-signature-headers"
 // valid time differenz of request
 const timeDiff = 5 * time.Minute
 
-// Validate signature of request i.e. for event handling
+// Validate signature of request i.e. for validate HTTP events from cloud center
 // The middleware "HandleSignaturValidation" checks the signature of incoming requests. This is important for
 // cloud center to app authentication. The cloudcenter make an POST request to app with a signature. The middleware
 // checks if request is a POST request and the content-type header is set to "application/json".
-// If the requested signature is valid, then your handler is invoke to handle http events from cloud center. If the
+// If the requested signature is valid, then your handler is invoke to handle the request. If the
 // signature is invalid, the middleware returns the HTTP error 403 "Forbidden" and log the reason to your application log.
 //
 // The parameter for the "appSecret" is the base64 decoded app secret string of your app as byte array.
 //
 // More information about signature algorithm please visit the following documentation:
-// 	https://portal.d-velop.de/documentation/ccapi/de/cloudcenter-api-197757199.html
+// 	coming soon...
 //
 // Example:
 //	func main() {
@@ -51,7 +51,9 @@ const timeDiff = 5 * time.Minute
 //			panic(err)
 //		}
 //		mux := http.NewServeMux()
-//		mux.Handle("/app/dvelop-cloud-lifecycle-event", requestsignatur.HandleSignaturValidation(myAppSecret, time.Now)(eventHandler()))
+//		// the path must a ressource for dvelop-cloud-lifecycle-event
+//		path := "/app/dvelop-cloud-lifecycle-event"
+//		mux.Handle(path, requestsignatur.HandleSignaturValidation(myAppSecret, time.Now)(eventHandler()))
 //	}
 //
 //	func eventHandler() http.Handler {
@@ -112,6 +114,51 @@ type requestSignaturValidator struct {
 	now       func() time.Time
 }
 
+// Validate signature of request as function i.e. for validate HTTP events from cloud center
+// The function "ValidateSignedRequest" in "RequestSignatureValidator" checks the signature of a requests.
+// This is important for cloud center to app authentication. The cloudcenter make an POST request to app with a signature.
+// It checks if request is a POST request and the content-type header is set to "application/json". Then an own signature
+// will be calculated by information from header "dv-signature-headers" and a hash of request body. If the calculcated
+// signature is equals to signature of Authorization-header, the signature in request is valid. If signature is valid,
+// no error is returned from the function. Otherwise it returns an error and you must abort the request by returning
+// HTTP error 403 "Forbidden".
+//
+// The parameter for the "appSecret" is the base64 decoded app secret string of your app as byte array.
+//
+// More information about signature algorithm please visit the following documentation on
+// 	coming soon...
+//
+// Example:
+//	func eventHandler() http.Handler {
+//		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+//			// replace `Zm9vYmFy` with your app secret (base64-string)
+//			myAppSecret, err := base64.StdEncoding.DecodeString(`Zm9vYmFy`)
+//			if err != nil {
+//				panic(err)
+//			}
+//			signatureValidator := NewRequestSignaturValidator(myAppSecret, time.Now)
+//			err = signatureValidator.ValidateSignedRequest(req)
+//			if err != nil {
+//				log.Print(err)
+//				http.Error(w, err.Error(), http.StatusInternalServerError)
+//				return
+//			}
+//
+//			eventDto := &struct {
+//				EventType string `json:"type"`
+//				TenantId  string `json:"tenantId"`
+//				BaseUri   string `json:"baseUri"`
+//			}{}
+//			err = json.NewDecoder(req.Body).Decode(eventDto)
+//			if err != nil {
+//				log.Print(err)
+//				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+//				return
+//			}
+//			doSomeStuff(eventDto)
+//	})
+//}
+
 func NewRequestSignaturValidator(appSecret []byte, timeNow func() time.Time) RequestSignatureValidator {
 	return &requestSignaturValidator{
 		appSecret,
@@ -119,8 +166,7 @@ func NewRequestSignaturValidator(appSecret []byte, timeNow func() time.Time) Req
 	}
 }
 
-// validate signed request as function
-// todo: write description of function with example code
+// validate signature in request as function
 func (signer *requestSignaturValidator) ValidateSignedRequest(req *http.Request) error {
 	if signer.appSecret == nil {
 		return errors.New("app secret has not been configured")
