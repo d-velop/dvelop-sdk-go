@@ -23,7 +23,7 @@ type contextKey string
 const principalKey = contextKey("Principal")
 const authSessionIdKey = contextKey("AuthSessionId")
 
-// HandleAuth authenticates the user using the IdentityProviderApp
+// Authenticate authenticates the user using the IdentityProviderApp
 //
 // If the user is already logged in the credentials of the user are taken from the http request.
 // Otherwise the request is redirected to the IdentityProvider for authentication and redirected back to
@@ -43,10 +43,12 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //
 // Example:
 //	func main() {
-//		// allow user which is authenticated by Open ID Connect provider
-//		allowExternalValidation := true
+//		authenticate := idp.Authenticate(tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, false, logerror, loginfo)
+//		authenticateExternal := idp.Authenticate(tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, true, logerror, loginfo)
 //		mux := http.NewServeMux()
-//		mux.Handle("/hello", idp.HandleAuth(tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, allowExternalValidation, logerror, loginfo)(helloHandler()))
+//		mux.Handle("/hello", authenticate(helloHandler()))
+//		mux.Handle("/resource", authenticate(resourceHandler()))
+//		mux.Handle("/resource4ExternalUsers", authenticateExternal(resource4ExternalUsersHandler()))
 //	}
 //
 //	func helloHandler() http.Handler {
@@ -58,7 +60,7 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //			fmt.Fprintf(w, "Hello %v your authsessionId is %v", principal.DisplayName, authSessionId)
 //		})
 //	}
-func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalValidation bool, logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
+func Authenticate(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalValidation bool, logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
