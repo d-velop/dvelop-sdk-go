@@ -252,7 +252,7 @@ func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSe
 			responseString = string(responseMsg)
 		}
 		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
-			response.Request.URL, response.StatusCode, string(responseString)))
+			response.Request.URL, response.StatusCode, responseString))
 	}
 }
 
@@ -273,7 +273,7 @@ func authSessionIdFrom(ctx context.Context, req *http.Request, loginfo func(ctx 
 			if err != nil {
 				return "", fmt.Errorf("value '%v' of '%v'-cookie is no valid url escaped string because: %v", cookie.Value, cookie.Name, err)
 			}
-			return string(value), nil
+			return value, nil
 		}
 	}
 	loginfo(ctx, fmt.Sprintf("no AuthSessionId found because there is no bearer authorization header and no AuthSessionId Cookie\n"))
