@@ -1,21 +1,17 @@
-// Package idp contains functions for the authentication process with the IdentityProviderApp
-package idp
+// Package authmiddleware contains a http middleware for the authentication with the IdentityProvider-App
+package authmiddleware
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"github.com/d-velop/dvelop-sdk-go/idp"
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
-	"github.com/patrickmn/go-cache"
 )
 
 type contextKey string
@@ -64,7 +60,7 @@ func Authenticate(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.C
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
-			authSessionId, aErr := authSessionIdFrom(ctx, req, loginfo)
+			authSessionId, aErr := authSessionIdFromRequest(ctx, req, loginfo)
 			if aErr != nil {
 				logerror(ctx, fmt.Sprintf("error reading authSessionId from request because: %v\n", aErr))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -99,15 +95,15 @@ func Authenticate(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.C
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			principal, gPErr := getPrincipalFromIdp(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalValidation)
-			if gPErr != nil {
-				if gPErr == errInvalidAuthSessionId {
+			principal, valErr := idp.Validate(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalValidation)
+			if valErr != nil {
+				if valErr == idp.ErrInvalidAuthSessionId {
 					redirectToIdpLogin(rw, req)
-				} else if gPErr == errExternalValidationNotAllowed {
+				} else if valErr == idp.ErrExternalValidationNotAllowed {
 					loginfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				} else {
-					logerror(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", gPErr))
+					logerror(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", valErr))
 					http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				}
 				return
@@ -125,32 +121,18 @@ func redirectToIdpLogin(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusFound)
 }
 
-var httpClient = &http.Client{}
-
-var errInvalidAuthSessionId = errors.New("invalid AuthSessionId")
-
-var errExternalValidationNotAllowed = errors.New("external validation not allowed")
-
-var userCache = cache.New(1*time.Minute, 5*time.Minute)
-
-var maxAgeRegex = regexp.MustCompile(`(?i)max-age=([^,\s]*)`) // cf. https://regex101.com/
-
 func isTextHtmlAccepted(header string) bool {
-
 	trimmedHeader := strings.TrimSpace(header)
 	if trimmedHeader == "" {
 		return true
 	}
-
 	acceptableTypes := strings.Split(trimmedHeader, ",")
 	for _, a := range acceptableTypes {
 		parts := strings.SplitN(a, ";", 2)
 		t := strings.TrimSpace(parts[0])
-
 		if t == "*/*" || t == "text/*" {
 			t = "text/html"
 		}
-
 		q := 1.0
 		if len(parts) == 2 && len(parts[1]) > 2 {
 			qPart := strings.TrimSpace(parts[1][3:])
@@ -160,113 +142,21 @@ func isTextHtmlAccepted(header string) bool {
 				q = 0
 			}
 		}
-
 		if (t == "text/html") && (q > 0.0) {
 			return true
 		}
 	}
-
 	return false
-}
-
-func isPrincipalExternalUser(p scim.Principal) bool {
-	for _, group := range p.Groups {
-		if strings.ToUpper(group.Value) == "3E093BE5-CCCE-435D-99F8-544656B98681" {
-			return true
-		}
-	}
-	return false
-}
-
-func validateEndpointFor(systemBaseUriString string, allowExternalValidation bool) (*url.URL, error) {
-	validateEndpointString := "/identityprovider/validate"
-	if allowExternalValidation {
-		validateEndpointString = fmt.Sprintf("%v?allowExternalValidation=true", validateEndpointString)
-	}
-	validateEndpoint, vPErr := url.Parse(validateEndpointString)
-	if vPErr != nil {
-		return nil, fmt.Errorf("%v", vPErr)
-	}
-	base, sBPErr := url.Parse(systemBaseUriString)
-	if sBPErr != nil {
-		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUriString, sBPErr)
-	}
-	return base.ResolveReference(validateEndpoint), nil
-}
-
-func getPrincipalFromIdp(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalValidation bool) (scim.Principal, error) {
-	cacheKey := fmt.Sprintf("%v/%v", tenantId, authSessionId)
-	co, found := userCache.Get(cacheKey)
-	if found {
-		p := co.(scim.Principal)
-		loginfo(ctx, fmt.Sprintf("taking user info for user '%v' from in memory cache.\n", p.Id))
-		return p, nil
-	}
-
-	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString, allowExternalValidation)
-	if vEErr != nil {
-		return scim.Principal{}, vEErr
-	}
-
-	req, nRErr := http.NewRequest("GET", validateEndpoint.String(), nil)
-	if nRErr != nil {
-		return scim.Principal{}, fmt.Errorf("can't create http request for '%v' because: %v", validateEndpoint.String(), nRErr)
-	}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
-	response, doErr := httpClient.Do(req)
-	if doErr != nil {
-		return scim.Principal{}, fmt.Errorf("error calling http GET on '%v' because: %v", validateEndpoint.String(), doErr)
-	}
-	defer response.Body.Close()
-
-	switch response.StatusCode {
-	case http.StatusOK:
-		var p scim.Principal
-		decErr := json.NewDecoder(response.Body).Decode(&p)
-		if decErr != nil {
-			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%v' is no valid JSON because: %v", validateEndpoint.String(), decErr)
-		}
-		if p.Id == "" && !isPrincipalExternalUser(p) {
-			return scim.Principal{}, errors.New("principal returned by identityprovider has no Id")
-		}
-
-		var validFor time.Duration = 0
-		cacheControlHeader := response.Header.Get("Cache-Control")
-		matches := maxAgeRegex.FindStringSubmatch(cacheControlHeader)
-		if matches != nil {
-			d, err := time.ParseDuration(matches[1] + "s")
-			if err == nil {
-				validFor = d
-			}
-		}
-		if validFor > 0 {
-			userCache.Set(cacheKey, p, validFor)
-		}
-		return p, nil
-	case http.StatusUnauthorized:
-		return scim.Principal{}, errInvalidAuthSessionId
-	case http.StatusForbidden:
-		return scim.Principal{}, errExternalValidationNotAllowed
-	default:
-		responseMsg, err := ioutil.ReadAll(response.Body)
-		responseString := ""
-		if err == nil {
-			responseString = string(responseMsg)
-		}
-		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
-			response.Request.URL, response.StatusCode, responseString))
-	}
 }
 
 var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$") // cf. https://regex101.com/
 
-func authSessionIdFrom(ctx context.Context, req *http.Request, loginfo func(ctx context.Context, logmessage string)) (string, error) {
+func authSessionIdFromRequest(ctx context.Context, req *http.Request, loginfo func(ctx context.Context, logmessage string)) (string, error) {
 	authorizationHeader := req.Header.Get("Authorization")
 	matches := bearerTokenRegex.FindStringSubmatch(authorizationHeader)
 	if matches != nil {
 		return matches[1], nil
 	}
-
 	const authSessionId = "AuthSessionId"
 	for _, cookie := range req.Cookies() {
 		if cookie.Name == authSessionId {
