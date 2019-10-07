@@ -9,6 +9,7 @@ import (
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"github.com/patrickmn/go-cache"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -16,32 +17,80 @@ import (
 	"time"
 )
 
-var httpClient = &http.Client{}
+// A Client is an IdentityProvider-App Client. Its zero value is a
+// usable client that uses the DefaultHttpClient and DefaultUserCache.
+type Client struct {
+	// HttpClient specifies the http.Client used for requests to the IdentityProvider-App
+	// If nil, DefaultHttpClient is used.
+	HttpClient *http.Client
 
-var userCache = cache.New(1*time.Minute, 5*time.Minute)
+	// UserCache specifies the Cache used to cache validated Users
+	// If nil, DefaultUserCache is used.
+	UserCache Cache
 
-var maxAgeRegex = regexp.MustCompile(`(?i)max-age=([^,\s]*)`) // cf. https://regex101.com/
+	// LogInfo specifies the function used to log informational messages
+	// If nil, DefaultLogInfo is used
+	LogInfo func(ctx context.Context, message string)
+}
 
-func Validate(ctx context.Context, systemBaseUriString string, authSessionId string, tenantId string, loginfo func(ctx context.Context, logmessage string), allowExternalValidation bool) (scim.Principal, error) {
+// Cache is an interface representing the ability to cache arbitrary items for
+// a certain amount of time
+type Cache interface {
+	// Get an item from the cache. Returns the item or nil, and a bool indicating
+	// whether the key was found.
+	Get(key string) (item interface{}, found bool)
+
+	// Add an item to the cache for the specified cacheDuration.
+	Set(key string, item interface{}, cacheDuration time.Duration)
+}
+
+var DefaultHttpClient = &http.Client{}
+
+func (c *Client) httpClient() *http.Client {
+	if c.HttpClient != nil {
+		return c.HttpClient
+	}
+	return DefaultHttpClient
+}
+
+var DefaultUserCache = cache.New(1*time.Minute, 5*time.Minute)
+
+func (c *Client) userCache() Cache {
+	if c.UserCache != nil {
+		return c.UserCache
+	}
+	return DefaultUserCache
+}
+
+var DefaultLogInfo = func(ctx context.Context, message string) { log.Print(message) }
+
+func (c *Client) logInfo() func(ctx context.Context, message string) {
+	if c.LogInfo != nil {
+		return c.LogInfo
+	}
+	return DefaultLogInfo
+}
+
+func (c *Client) Validate(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, allowExternalValidation bool) (scim.Principal, error) {
 	cacheKey := fmt.Sprintf("%v/%v", tenantId, authSessionId)
-	co, found := userCache.Get(cacheKey)
+	co, found := c.userCache().Get(cacheKey)
 	if found {
 		p := co.(scim.Principal)
-		loginfo(ctx, fmt.Sprintf("taking user info for user '%v' from in memory cache.\n", p.Id))
+		c.logInfo()(ctx, fmt.Sprintf("taking user info for user '%v' from in memory cache.\n", p.Id))
 		return p, nil
 	}
 
-	validateEndpoint, vEErr := validateEndpointFor(systemBaseUriString, allowExternalValidation)
+	validateEndpoint, vEErr := validateEndpointFor(systemBaseUri, allowExternalValidation)
 	if vEErr != nil {
 		return scim.Principal{}, vEErr
 	}
 
-	req, nRErr := http.NewRequest("GET", validateEndpoint.String(), nil)
+	req, nRErr := http.NewRequestWithContext(ctx, "GET", validateEndpoint.String(), nil)
 	if nRErr != nil {
 		return scim.Principal{}, fmt.Errorf("can't create http request for '%v' because: %v", validateEndpoint.String(), nRErr)
 	}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
-	response, doErr := httpClient.Do(req)
+	response, doErr := c.httpClient().Do(req)
 	if doErr != nil {
 		return scim.Principal{}, fmt.Errorf("error calling http GET on '%v' because: %v", validateEndpoint.String(), doErr)
 	}
@@ -68,7 +117,7 @@ func Validate(ctx context.Context, systemBaseUriString string, authSessionId str
 			}
 		}
 		if validFor > 0 {
-			userCache.Set(cacheKey, p, validFor)
+			c.userCache().Set(cacheKey, p, validFor)
 		}
 		return p, nil
 	case http.StatusUnauthorized:
@@ -87,6 +136,8 @@ func Validate(ctx context.Context, systemBaseUriString string, authSessionId str
 			response.Request.URL, response.StatusCode, responseString))
 	}
 }
+
+var maxAgeRegex = regexp.MustCompile(`(?i)max-age=([^,\s]*)`) // cf. https://regex101.com/
 
 func isPrincipalExternalUser(p scim.Principal) bool {
 	for _, group := range p.Groups {
@@ -113,6 +164,8 @@ func validateEndpointFor(systemBaseUriString string, allowExternalValidation boo
 	return base.ResolveReference(validateEndpoint), nil
 }
 
+// Invalid AuthSessionId
 var ErrInvalidAuthSessionId = errors.New("invalid AuthSessionId")
 
+// AuthSessionId is valid BUT external users are not allowed
 var ErrExternalValidationNotAllowed = errors.New("external validation not allowed")

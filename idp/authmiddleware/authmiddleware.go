@@ -19,7 +19,7 @@ type contextKey string
 const principalKey = contextKey("Principal")
 const authSessionIdKey = contextKey("AuthSessionId")
 
-// Authenticate authenticates the user using the IdentityProviderApp
+// Authenticate authenticates the user using the IdentityProvider-App
 //
 // If the user is already logged in the credentials of the user are taken from the http request.
 // Otherwise the request is redirected to the IdentityProvider for authentication and redirected back to
@@ -39,8 +39,9 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //
 // Example:
 //	func main() {
-//		authenticate := idp.Authenticate(tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, false, logerror, loginfo)
-//		authenticateExternal := idp.Authenticate(tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, true, logerror, loginfo)
+//		idpClient := &idp.Client{}
+//		authenticate := authmiddleware.Authenticate(idpClient, tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, false, logerror, loginfo)
+//		authenticateExternal := authmiddleware.Authenticate(idpClient, tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, true, logerror, loginfo)
 //		mux := http.NewServeMux()
 //		mux.Handle("/hello", authenticate(helloHandler()))
 //		mux.Handle("/resource", authenticate(resourceHandler()))
@@ -50,19 +51,19 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //	func helloHandler() http.Handler {
 //		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 //			// get user from context
-//			principal,_ := idp.PrincipalFromCtx(r.Context())
+//			principal,_ := authmiddleware.PrincipalFromCtx(r.Context())
 //			// get authSessionId From context
-//			authSessionId,_ := idp.AuthSessionIdFromCtx(r.Context())
+//			authSessionId,_ := authmiddleware.AuthSessionIdFromCtx(r.Context())
 //			fmt.Fprintf(w, "Hello %v your authsessionId is %v", principal.DisplayName, authSessionId)
 //		})
 //	}
-func Authenticate(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalValidation bool, logerror, loginfo func(ctx context.Context, logmessage string)) func(http.Handler) http.Handler {
+func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Context) (string, error), allowExternalValidation bool, logError, logInfo func(ctx context.Context, message string)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
-			authSessionId, aErr := authSessionIdFromRequest(ctx, req, loginfo)
+			authSessionId, aErr := authSessionIdFromRequest(ctx, req, logInfo)
 			if aErr != nil {
-				logerror(ctx, fmt.Sprintf("error reading authSessionId from request because: %v\n", aErr))
+				logError(ctx, fmt.Sprintf("error reading authSessionId from request because: %v\n", aErr))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -85,25 +86,25 @@ func Authenticate(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.C
 			}
 			systemBaseUri, gSBErr := getSystemBaseUriFromCtx(ctx)
 			if gSBErr != nil {
-				logerror(ctx, fmt.Sprintf("error reading SystemBaseUri from context because: %v\n", gSBErr))
+				logError(ctx, fmt.Sprintf("error reading SystemBaseUri from context because: %v\n", gSBErr))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 			tenantId, gTErr := getTenantIdFromCtx(req.Context())
 			if gTErr != nil {
-				logerror(ctx, fmt.Sprintf("error reading TenandId from context because: %v\n", gTErr))
+				logError(ctx, fmt.Sprintf("error reading TenandId from context because: %v\n", gTErr))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			principal, valErr := idp.Validate(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalValidation)
+			principal, valErr := validator.Validate(ctx, systemBaseUri, tenantId, authSessionId, allowExternalValidation)
 			if valErr != nil {
-				if valErr == idp.ErrInvalidAuthSessionId {
+				if valErr == idp.ErrInvalidAuthSessionId { // todo Error Def im middlewarePackage
 					redirectToIdpLogin(rw, req)
-				} else if valErr == idp.ErrExternalValidationNotAllowed {
-					loginfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
+				} else if valErr == idp.ErrExternalValidationNotAllowed { // todo Error Def im middlewarePackage
+					logInfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				} else {
-					logerror(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", valErr))
+					logError(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", valErr))
 					http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				}
 				return
@@ -113,6 +114,14 @@ func Authenticate(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.C
 			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
 	}
+}
+
+// Validator is an interface representing the ability to validate a user
+type Validator interface {
+	// Validate validates the user for the tenant specified by systemBaseUri and tenantId using the authSessionId.
+	// If allowExternalValidation is true external users are allowed.
+	// USE THIS FEATURE WITH CAUTION. If your are unsure you should set allowExternalValidation to false, as you usually don't want external users to access your app.
+	Validate(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, allowExternalValidation bool) (scim.Principal, error)
 }
 
 func redirectToIdpLogin(rw http.ResponseWriter, req *http.Request) {
@@ -151,7 +160,7 @@ func isTextHtmlAccepted(header string) bool {
 
 var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$") // cf. https://regex101.com/
 
-func authSessionIdFromRequest(ctx context.Context, req *http.Request, loginfo func(ctx context.Context, logmessage string)) (string, error) {
+func authSessionIdFromRequest(ctx context.Context, req *http.Request, logInfo func(ctx context.Context, message string)) (string, error) {
 	authorizationHeader := req.Header.Get("Authorization")
 	matches := bearerTokenRegex.FindStringSubmatch(authorizationHeader)
 	if matches != nil {
@@ -168,7 +177,7 @@ func authSessionIdFromRequest(ctx context.Context, req *http.Request, loginfo fu
 			return value, nil
 		}
 	}
-	loginfo(ctx, fmt.Sprintf("no AuthSessionId found because there is no bearer authorization header and no AuthSessionId Cookie\n"))
+	logInfo(ctx, fmt.Sprintf("no AuthSessionId found because there is no bearer authorization header and no AuthSessionId Cookie\n"))
 	return "", nil
 }
 

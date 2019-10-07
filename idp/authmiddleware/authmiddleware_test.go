@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/d-velop/dvelop-sdk-go/idp"
 	"github.com/d-velop/dvelop-sdk-go/idp/authmiddleware"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,8 @@ import (
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
+var idpClient = &idp.Client{}
+
 func TestGetRequestWithFalseAuthorizationType_RedirectsToIdp(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
@@ -25,7 +28,7 @@ func TestGetRequestWithFalseAuthorizationType_RedirectsToIdp(t *testing.T) {
 	req.Header.Set("Authorization", "Basic adadbk")
 	handlerSpy := handlerSpy{}
 
-	authmiddleware.Authenticate(nil, nil, false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -47,7 +50,7 @@ func TestGetRequestWithFalseCookie_RedirectsToIdp(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: "AnyCookie", Value: "adadbk"})
 	handlerSpy := handlerSpy{}
 
-	authmiddleware.Authenticate(nil, nil, false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -67,7 +70,7 @@ func TestHeadRequestWithoutAuthorizationInfos_RedirectsToIdp(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	authmiddleware.Authenticate(nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -87,7 +90,7 @@ func TestPostRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	authmiddleware.Authenticate(nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -107,7 +110,7 @@ func TestPutRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	authmiddleware.Authenticate(nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -127,7 +130,7 @@ func TestDeleteRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	authmiddleware.Authenticate(nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -147,7 +150,7 @@ func TestPatchRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
 	}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 	handlerSpy := &handlerSpy{}
-	authmiddleware.Authenticate(nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+	authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
 		t.Error(err)
@@ -176,7 +179,7 @@ func TestRequestWithBearerAuthorization_PopulatesContextWithPrincipalAndAuthsess
 	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -198,7 +201,7 @@ func TestRequestWithLowerCaseBearerAuthorization_PopulatesContextWithPrincipalAn
 	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -221,7 +224,7 @@ func TestRequestWithAuthSessionIdCookie_PopulatesContextWithPrincipalAndAuthsess
 	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -245,7 +248,7 @@ func TestRequestWithBadUrlEncodedAuthSessionIdCookie_ReturnsStatus500(t *testing
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -269,7 +272,7 @@ func TestRequestWithBearerTokenAndCookie_PopulatesContextUsingBearerToken(t *tes
 	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -295,7 +298,7 @@ func TestRequestWithBadTokenAndExternalValidationIsNotAllowed_RedirectsToIdp(t *
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -324,7 +327,7 @@ func TestRequestWithBadTokenAndExternalValidationIsAllowed_RedirectsToIdp(t *tes
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -350,7 +353,7 @@ func TestGetSystemBaseUriFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(func(ctx context.Context) (string, error) { return "", errors.New("any error") }, returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, func(ctx context.Context) (string, error) { return "", errors.New("any error") }, returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -373,7 +376,7 @@ func TestGetTenantIdFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), func(ctx context.Context) (string, error) { return "", errors.New("any error") }, false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), func(ctx context.Context) (string, error) { return "", errors.New("any error") }, false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -398,7 +401,7 @@ func TestIdPReturnsStatus500_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -424,7 +427,7 @@ func TestIdPReturnsMalformedJson_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -450,7 +453,7 @@ func TestIdPReturnsPrincipalWithEmptyId_ReturnsStatus500(t *testing.T) {
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
@@ -479,9 +482,9 @@ func TestUserIsCachedAndCacheEntryIsNotExpired_ReturnsCachedEntry(t *testing.T) 
 	}))
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 	time.Sleep(1 * time.Nanosecond)
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if idpCalled != 1 {
 		t.Errorf("IdP has been called %v times but expected %v times", idpCalled, 1)
@@ -510,9 +513,9 @@ func TestUserIsCachedButCacheEntryIsExpired_CallsIdp(t *testing.T) {
 	}))
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 	time.Sleep(1 * time.Second)
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if idpCalled != 2 {
 		t.Errorf("IdP has been called %v times but expected %v times", idpCalled, 2)
@@ -534,7 +537,7 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 	idpStub1 := newIdpStub(map[string]scim.Principal{authSessionId: principalT1}, nil)
 	defer idpStub1.Close()
 	handlerSpy1 := handlerSpy{}
-	authmiddleware.Authenticate(returnFromCtx(idpStub1.URL), returnFromCtx("1"), false, log, log)(&handlerSpy1).ServeHTTP(httptest.NewRecorder(), reqTenant1)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub1.URL), returnFromCtx("1"), false, log, log)(&handlerSpy1).ServeHTTP(httptest.NewRecorder(), reqTenant1)
 
 	if err := handlerSpy1.assertPrincipalIs(principalT1); err != nil {
 		t.Error(err)
@@ -549,7 +552,7 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 	idpStub2 := newIdpStub(map[string]scim.Principal{authSessionId: principalT2}, nil)
 	defer idpStub2.Close()
 	handlerSpy2 := handlerSpy{}
-	authmiddleware.Authenticate(returnFromCtx(idpStub2.URL), returnFromCtx("2"), false, log, log)(&handlerSpy2).ServeHTTP(httptest.NewRecorder(), reqTenant2)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub2.URL), returnFromCtx("2"), false, log, log)(&handlerSpy2).ServeHTTP(httptest.NewRecorder(), reqTenant2)
 
 	if err := handlerSpy2.assertPrincipalIs(principalT2); err != nil {
 		t.Error(err)
@@ -568,7 +571,7 @@ func TestRequestAsExternalUserAndExternalUserValidationIsNotAllowed_ReturnsStatu
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 	if err := spy.assertStatusCodeIs(http.StatusForbidden); err != nil {
 		t.Error(err)
 	}
@@ -589,7 +592,7 @@ func TestRequestAsExternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	idpStub := newIdpStub(nil, map[string]scim.Principal{authSessionId: principal})
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -611,7 +614,7 @@ func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	idpStub := newIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
 		t.Error(err)
@@ -639,8 +642,8 @@ func TestIdpSendsNoCacheHeader_CallsIdp(t *testing.T) {
 	}))
 	defer idpStub.Close()
 
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
-	authmiddleware.Authenticate(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	authmiddleware.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if idpCalled != 2 {
 		t.Errorf("IdP has been called %v times but expected %v times", idpCalled, 2)
@@ -690,7 +693,7 @@ func TestGetRequestWithoutAuthorizationInfosWithAcceptHeader(t *testing.T) {
 			responseSpy := responseSpy{httptest.NewRecorder()}
 
 			handlerSpy := &handlerSpy{}
-			authmiddleware.Authenticate(nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
+			authmiddleware.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 			if handlerSpy.hasBeenCalled {
 				t.Error("inner handler should not have been called")
