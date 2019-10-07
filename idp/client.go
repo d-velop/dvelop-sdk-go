@@ -72,8 +72,10 @@ func Validate(ctx context.Context, systemBaseUriString string, authSessionId str
 		}
 		return p, nil
 	case http.StatusUnauthorized:
+		_, _ = ioutil.ReadAll(response.Body) // client must read to EOF and close body cf. https://godoc.org/net/http#Client
 		return scim.Principal{}, ErrInvalidAuthSessionId
 	case http.StatusForbidden:
+		_, _ = ioutil.ReadAll(response.Body) // client must read to EOF and close body cf. https://godoc.org/net/http#Client
 		return scim.Principal{}, ErrExternalValidationNotAllowed
 	default:
 		responseMsg, err := ioutil.ReadAll(response.Body)
