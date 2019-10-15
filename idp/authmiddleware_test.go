@@ -337,6 +337,66 @@ func TestRequestWithBadTokenAndExternalValidationIsAllowed_RedirectsToIdp(t *tes
 	}
 }
 
+func TestRequestWithBadTokenAndExternalValidationIsNotAllowedAndAcceptsNoHTML_ReturnsStatus401(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// token nicht bekannt oder abgelaufen
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	req.Header.Set("Accept", "application/hal+json, application/json")
+	handlerSpy := handlerSpy{}
+	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// wenn token ungültig (nicht bekannt oder abgelaufen) dann schickt IdP ein 401
+		http.Error(w, "", http.StatusUnauthorized)
+	}))
+	defer idpStub.Close()
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if err := spy.assertHeadersAre(map[string]string{"WWW-Authenticate": "Bearer"}); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestRequestWithBadTokenAndExternalValidationIsAllowedAndAcceptsNoHTML_ReturnsStatus401(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// token nicht bekannt oder abgelaufen
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	req.Header.Set("Accept", "application/hal+json, application/json")
+	handlerSpy := handlerSpy{}
+	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// wenn token ungültig (nicht bekannt oder abgelaufen) dann schickt IdP ein 401
+		http.Error(w, "", http.StatusUnauthorized)
+	}))
+	defer idpStub.Close()
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.HandleAuth(returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if err := spy.assertHeadersAre(map[string]string{"WWW-Authenticate": "Bearer"}); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
 func TestGetSystemBaseUriFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {

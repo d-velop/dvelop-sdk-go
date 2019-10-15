@@ -70,20 +70,7 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 				return
 			}
 			if authSessionId == "" {
-				acceptHeader := req.Header.Get("Accept")
-				if !isTextHtmlAccepted(acceptHeader) {
-					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
-					return
-				}
-
-				switch req.Method {
-				case "POST", "PUT", "DELETE", "PATCH":
-					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
-				default:
-					redirectToIdpLogin(rw, req)
-				}
+				handleInvalidAuthentication(req, rw)
 				return
 			}
 			systemBaseUri, gSBErr := getSystemBaseUriFromCtx(ctx)
@@ -101,7 +88,7 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 			principal, gPErr := getPrincipalFromIdp(ctx, systemBaseUri, authSessionId, tenantId, loginfo, allowExternalValidation)
 			if gPErr != nil {
 				if gPErr == errInvalidAuthSessionId {
-					redirectToIdpLogin(rw, req)
+					handleInvalidAuthentication(req, rw)
 				} else if gPErr == errExternalValidationNotAllowed {
 					loginfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
@@ -115,6 +102,22 @@ func HandleAuth(getSystemBaseUriFromCtx, getTenantIdFromCtx func(ctx context.Con
 			ctx = context.WithValue(ctx, principalKey, principal)
 			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
+	}
+}
+
+func handleInvalidAuthentication(req *http.Request, rw http.ResponseWriter) {
+	acceptHeader := req.Header.Get("Accept")
+	if !isTextHtmlAccepted(acceptHeader) {
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Header().Set("WWW-Authenticate", "Bearer")
+		return
+	}
+	switch req.Method {
+	case "POST", "PUT", "DELETE", "PATCH":
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Header().Set("WWW-Authenticate", "Bearer")
+	default:
+		redirectToIdpLogin(rw, req)
 	}
 }
 
