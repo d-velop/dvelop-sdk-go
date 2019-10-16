@@ -172,7 +172,7 @@ func authSessionIdFromRequest(ctx context.Context, req *http.Request, logInfo fu
 			// cookie is URL encoded cf. https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
 			value, err := url.QueryUnescape(cookie.Value)
 			if err != nil {
-				return "", fmt.Errorf("value '%v' of '%v'-cookie is no valid url escaped string because: %v", cookie.Value, cookie.Name, err)
+				return "", fmt.Errorf("value '%s' of '%s'-cookie is no valid url escaped string because: %v", cookie.Value, cookie.Name, err)
 			}
 			return value, nil
 		}

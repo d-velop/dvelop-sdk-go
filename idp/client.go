@@ -72,11 +72,11 @@ func (c *Client) logInfo() func(ctx context.Context, message string) {
 }
 
 func (c *Client) Validate(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, allowExternalValidation bool) (scim.Principal, error) {
-	cacheKey := fmt.Sprintf("%v/%v", tenantId, authSessionId)
+	cacheKey := fmt.Sprintf("%s/%s", tenantId, authSessionId)
 	co, found := c.userCache().Get(cacheKey)
 	if found {
 		p := co.(scim.Principal)
-		c.logInfo()(ctx, fmt.Sprintf("taking user info for user '%v' from in memory cache.\n", p.Id))
+		c.logInfo()(ctx, fmt.Sprintf("taking user info for user '%s' from in memory cache.\n", p.Id))
 		return p, nil
 	}
 
@@ -87,12 +87,12 @@ func (c *Client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 
 	req, nRErr := http.NewRequestWithContext(ctx, "GET", validateEndpoint.String(), nil)
 	if nRErr != nil {
-		return scim.Principal{}, fmt.Errorf("can't create http request for '%v' because: %v", validateEndpoint.String(), nRErr)
+		return scim.Principal{}, fmt.Errorf("can't create http request for '%s' because: %v", validateEndpoint, nRErr)
 	}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	response, doErr := c.httpClient().Do(req)
 	if doErr != nil {
-		return scim.Principal{}, fmt.Errorf("error calling http GET on '%v' because: %v", validateEndpoint.String(), doErr)
+		return scim.Principal{}, fmt.Errorf("error calling http GET on '%s' because: %v", validateEndpoint, doErr)
 	}
 	defer response.Body.Close()
 
@@ -101,10 +101,10 @@ func (c *Client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 		var p scim.Principal
 		decErr := json.NewDecoder(response.Body).Decode(&p)
 		if decErr != nil {
-			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%v' is no valid JSON because: %v", validateEndpoint.String(), decErr)
+			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%s' is no valid JSON because: %v", validateEndpoint, decErr)
 		}
 		if p.Id == "" && !isPrincipalExternalUser(p) {
-			return scim.Principal{}, errors.New("principal returned by identityprovider has no Id")
+			return scim.Principal{}, errors.New("principal returned by Identityprovider has no Id")
 		}
 
 		var validFor time.Duration = 0
@@ -132,7 +132,7 @@ func (c *Client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 		if err == nil {
 			responseString = string(responseMsg)
 		}
-		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%v' returned HTTP-Statuscode '%v' and message '%v'",
+		return scim.Principal{}, fmt.Errorf(fmt.Sprintf("Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
 			response.Request.URL, response.StatusCode, responseString))
 	}
 }
@@ -151,7 +151,7 @@ func isPrincipalExternalUser(p scim.Principal) bool {
 func validateEndpointFor(systemBaseUriString string, allowExternalValidation bool) (*url.URL, error) {
 	validateEndpointString := "/identityprovider/validate"
 	if allowExternalValidation {
-		validateEndpointString = fmt.Sprintf("%v?allowExternalValidation=true", validateEndpointString)
+		validateEndpointString = fmt.Sprintf("%s?allowExternalValidation=true", validateEndpointString)
 	}
 	validateEndpoint, vPErr := url.Parse(validateEndpointString)
 	if vPErr != nil {
@@ -159,7 +159,7 @@ func validateEndpointFor(systemBaseUriString string, allowExternalValidation boo
 	}
 	base, sBPErr := url.Parse(systemBaseUriString)
 	if sBPErr != nil {
-		return nil, fmt.Errorf("invalid SystemBaseUri '%v' because: %v", systemBaseUriString, sBPErr)
+		return nil, fmt.Errorf("invalid SystemBaseUri '%s' because: %v", systemBaseUriString, sBPErr)
 	}
 	return base.ResolveReference(validateEndpoint), nil
 }
