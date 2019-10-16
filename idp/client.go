@@ -99,8 +99,7 @@ func (c *Client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 	switch response.StatusCode {
 	case http.StatusOK:
 		var p scim.Principal
-		decErr := json.NewDecoder(response.Body).Decode(&p)
-		if decErr != nil {
+		if decErr := json.NewDecoder(response.Body).Decode(&p); decErr != nil {
 			return scim.Principal{}, fmt.Errorf("response from Identityprovider '%s' is no valid JSON because: %v", validateEndpoint, decErr)
 		}
 		if p.Id == "" && !isPrincipalExternalUser(p) {
