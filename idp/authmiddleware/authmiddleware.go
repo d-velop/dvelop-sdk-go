@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/idp"
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"net/http"
 	"net/url"
@@ -96,32 +95,37 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			principal, valErr := validator.Validate(ctx, systemBaseUri, tenantId, authSessionId, allowExternalValidation)
+			principal, valErr := validator.Validate(ctx, systemBaseUri, tenantId, authSessionId)
 			if valErr != nil {
-				if valErr == idp.ErrInvalidAuthSessionId { // todo Error Def im middlewarePackage
-					redirectToIdpLogin(rw, req)
-				} else if valErr == idp.ErrExternalValidationNotAllowed { // todo Error Def im middlewarePackage
-					logInfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
-					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-				} else {
-					logError(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", valErr))
-					http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				}
+				logError(ctx, fmt.Sprintf("error getting principal from Identityprovider because: %v\n", valErr))
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+			if principal == nil {
+				redirectToIdpLogin(rw, req)
+				return
+			}
+			if principal.IsExternal() && !allowExternalValidation {
+				logInfo(ctx, fmt.Sprintf("external user tries to access a resource and doesn't have sufficient rights."))
+				http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				return
 			}
 			ctx = context.WithValue(ctx, authSessionIdKey, authSessionId)
-			ctx = context.WithValue(ctx, principalKey, principal)
+			ctx = context.WithValue(ctx, principalKey, *principal)
 			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
 	}
 }
 
-// Validator is an interface representing the ability to validate a user
+// Validator is an interface representing the ability to validate an authSessionId
 type Validator interface {
-	// Validate validates the user for the tenant specified by systemBaseUri and tenantId using the authSessionId.
-	// If allowExternalValidation is true external users are allowed.
-	// USE THIS FEATURE WITH CAUTION. If your are unsure you should set allowExternalValidation to false, as you usually don't want external users to access your app.
-	Validate(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, allowExternalValidation bool) (scim.Principal, error)
+	// Validate checks if the authSessionId is valid for the tenant specified by systemBaseUri and tenantId.
+	//
+	// If the authSessionId is valid, that is it belongs to a principal and has not expired, a none nil *scim.Principal is returned.
+	// Otherwise the returned *scim.Principal is nil.
+	//
+	// An error is returned if something unexpected occurred.
+	Validate(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string) (*scim.Principal, error)
 }
 
 func redirectToIdpLogin(rw http.ResponseWriter, req *http.Request) {

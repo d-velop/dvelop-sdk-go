@@ -1,7 +1,3 @@
-// Package scim provides types for representing users and groups using the
-// Simple Cloud Identity Management (SCIM) core schema 1.0
-//
-// cf. http://www.simplecloud.info/specs/draft-scim-core-schema-00.html#schema
 package scim
 
 import (
@@ -69,6 +65,23 @@ func (p Principal) String() string {
 	b, _ := json.Marshal(p)
 	return string(b)
 }
+
+// IsExternal returns true, if the principal is an external user.
+//
+// External users are users which have been authenticated successfully but have not been explicitly added to the list
+// of know users for the particular tenant.
+// cf. the documentation of the IdentityProvider-App in the developer portal https://developer.d-velop.de
+// for further information.
+func (p *Principal) IsExternal() bool {
+	for _, g := range p.Groups {
+		if g.Value == externalGroupId {
+			return true
+		}
+	}
+	return false
+}
+
+const externalGroupId = "3E093BE5-CCCE-435D-99F8-544656B98681"
 
 type UserName struct {
 	// Formatted is the full name, including all middle names, titles, and suffixes as appropriate, formatted for display (e.g. Ms. Barbara Jane Jensen, III.).
