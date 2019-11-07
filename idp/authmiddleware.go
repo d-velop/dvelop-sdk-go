@@ -1,5 +1,5 @@
-// Package authmiddleware contains a http middleware for the authentication with the IdentityProvider-App
-package authmiddleware
+// Package idp contains a http middleware and a client for the authentication with the IdentityProvider-App
+package idp
 
 import (
 	"context"
@@ -39,9 +39,12 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //
 // Example:
 //	func main() {
-//		idpClient := &idp.Client{}
-//		authenticate := authmiddleware.Authenticate(idpClient, tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, false, logerror, loginfo)
-//		authenticateExternal := authmiddleware.Authenticate(idpClient, tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, true, logerror, loginfo)
+//		idpClient,err := idpclient.New()
+//		if err != nil {
+//			// error handling
+//		}
+//		authenticate := idp.Authenticate(idpClient, tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, false, logError, logInfo)
+//		authenticateExternal := idp.Authenticate(idpClient, tenant.SystemBaseUriFromCtx, tenant.IdFromCtx, true, logerror, loginfo)
 //		mux := http.NewServeMux()
 //		mux.Handle("/hello", authenticate(helloHandler()))
 //		mux.Handle("/resource", authenticate(resourceHandler()))
@@ -51,9 +54,9 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //	func helloHandler() http.Handler {
 //		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 //			// get user from context
-//			principal,err := authmiddleware.PrincipalFromCtx(r.Context())
+//			principal,err := idp.PrincipalFromCtx(r.Context())
 //			// get authSessionId From context
-//			authSessionId,err := authmiddleware.AuthSessionIdFromCtx(r.Context())
+//			authSessionId,err := idp.AuthSessionIdFromCtx(r.Context())
 //			fmt.Fprintf(w, "Hello %v your authsessionId is %v", principal.DisplayName, authSessionId)
 //		})
 //	}
