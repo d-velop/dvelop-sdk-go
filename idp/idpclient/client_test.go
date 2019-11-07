@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/idp/idpclient"
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
-	"github.com/d-velop/dvelop-sdk-go/idp/test"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +13,10 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/d-velop/dvelop-sdk-go/idp/idpclient"
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
+	"github.com/d-velop/dvelop-sdk-go/idp/test"
 )
 
 func ExampleNew_default() {

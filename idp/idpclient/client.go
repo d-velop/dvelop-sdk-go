@@ -6,13 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
 type client struct {
@@ -163,8 +164,8 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 		return nil, nil
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf(fmt.Sprintf("Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1]))
+		return nil, fmt.Errorf("Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
+			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
 	}
 }
 

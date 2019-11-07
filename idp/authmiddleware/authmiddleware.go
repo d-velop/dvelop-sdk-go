@@ -5,12 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
 type contextKey string
@@ -50,9 +51,9 @@ const authSessionIdKey = contextKey("AuthSessionId")
 //	func helloHandler() http.Handler {
 //		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 //			// get user from context
-//			principal,_ := authmiddleware.PrincipalFromCtx(r.Context())
+//			principal,err := authmiddleware.PrincipalFromCtx(r.Context())
 //			// get authSessionId From context
-//			authSessionId,_ := authmiddleware.AuthSessionIdFromCtx(r.Context())
+//			authSessionId,err := authmiddleware.AuthSessionIdFromCtx(r.Context())
 //			fmt.Fprintf(w, "Hello %v your authsessionId is %v", principal.DisplayName, authSessionId)
 //		})
 //	}
@@ -89,7 +90,7 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			tenantId, gTErr := getTenantIdFromCtx(req.Context())
+			tenantId, gTErr := getTenantIdFromCtx(ctx)
 			if gTErr != nil {
 				logError(ctx, fmt.Sprintf("error reading TenandId from context because: %v\n", gTErr))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
