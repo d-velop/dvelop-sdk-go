@@ -19,6 +19,8 @@ import (
 
 var idpClient, _ = idpclient.New()
 
+// todo: Evaluate Table Driven Tests to reduce repetition cf. https://dave.cheney.net/2019/05/07/prefer-table-driven-tests
+
 func TestGetRequestWithFalseAuthorizationType_RedirectsToIdp(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
