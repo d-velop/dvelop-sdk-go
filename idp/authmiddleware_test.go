@@ -282,21 +282,27 @@ func TestRequestWithBearerTokenAndCookie_PopulatesContextUsingBearerToken(t *tes
 	}
 }
 
-func TestRequestWithBadTokenAndExternalValidationIsNotAllowed_RedirectsToIdp(t *testing.T) {
+type validatorStub struct {
+	returnedPrincipal *scim.Principal
+}
+
+func (v *validatorStub) Validate(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string) (*scim.Principal, error) {
+	return v.returnedPrincipal, nil
+}
+
+func TestGetRequestWithInvalidTokenAndHtmlAccepted_RedirectsToIdp(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	const badToken = "200e7388-1834-434b-be79-3745181e1457"
 	req.Header.Set("Authorization", "Bearer "+badToken)
+	req.Header.Set("Accept", "text/html")
 	handlerSpy := handlerSpy{}
-	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "", http.StatusUnauthorized)
-	}))
-	defer idpStub.Close()
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)
@@ -309,21 +315,125 @@ func TestRequestWithBadTokenAndExternalValidationIsNotAllowed_RedirectsToIdp(t *
 	}
 }
 
-func TestRequestWithBadTokenAndExternalValidationIsAllowed_RedirectsToIdp(t *testing.T) {
+func TestGetRequestWithInvalidTokenAndNoHtmlAccepted_ReturnsStatus401(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	const badToken = "200e7388-1834-434b-be79-3745181e1457"
 	req.Header.Set("Authorization", "Bearer "+badToken)
+	req.Header.Set("Accept", "application/json")
 	handlerSpy := handlerSpy{}
-	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "", http.StatusUnauthorized)
-	}))
-	defer idpStub.Close()
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
 	spy := responseSpy{httptest.NewRecorder()}
 
-	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestPostRequestWithInvalidToken_ReturnsStatus401(t *testing.T) {
+	req, err := http.NewRequest("POST", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestPutRequestWithInvalidToken_ReturnsStatus401(t *testing.T) {
+	req, err := http.NewRequest("PUT", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestDeleteRequestWithInvalidToken_ReturnsStatus401(t *testing.T) {
+	req, err := http.NewRequest("DELETE", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestPatchRequestWithInvalidToken_ReturnsStatus401(t *testing.T) {
+	req, err := http.NewRequest("PATCH", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	handlerSpy := handlerSpy{}
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+
+	if err := spy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+}
+
+func TestGetRequestWithInvalidTokenAndAndHtmlAcceptedAndExternalValidation_RedirectsToIdp(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const badToken = "200e7388-1834-434b-be79-3745181e1457"
+	req.Header.Set("Authorization", "Bearer "+badToken)
+	req.Header.Set("Accept", "text/html")
+	handlerSpy := handlerSpy{}
+	idpClientStub := &validatorStub{returnedPrincipal: nil}
+	spy := responseSpy{httptest.NewRecorder()}
+
+	idp.Authenticate(idpClientStub, returnFromCtx(""), returnFromCtx("1"), true, log, log)(&handlerSpy).ServeHTTP(spy, req)
 
 	if err := spy.assertStatusCodeIs(http.StatusFound); err != nil {
 		t.Error(err)

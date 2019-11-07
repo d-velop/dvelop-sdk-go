@@ -106,7 +106,19 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				return
 			}
 			if principal == nil {
-				redirectToIdpLogin(rw, req)
+				acceptHeader := req.Header.Get("Accept")
+				if !isTextHtmlAccepted(acceptHeader) {
+					rw.WriteHeader(http.StatusUnauthorized)
+					rw.Header().Set("WWW-Authenticate", "Bearer")
+					return
+				}
+				switch req.Method {
+				case "POST", "PUT", "DELETE", "PATCH":
+					rw.WriteHeader(http.StatusUnauthorized)
+					rw.Header().Set("WWW-Authenticate", "Bearer")
+				default:
+					redirectToIdpLogin(rw, req)
+				}
 				return
 			}
 			if principal.IsExternal() && !allowExternalValidation {
