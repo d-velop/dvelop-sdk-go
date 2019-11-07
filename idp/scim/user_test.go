@@ -22,3 +22,47 @@ func TestCanDeserializeSCIMUser(t *testing.T) {
 		t.Errorf("Unmarshaled Object wrong: got \n %v want\n %v", u, donaldDuck)
 	}
 }
+
+func TestPrincipalHasNilGroups_IsExternal_IsFalse(t *testing.T) {
+	p := scim.Principal{
+		Groups: nil,
+	}
+
+	if p.IsExternal() {
+		t.Errorf("Expected false for principal with nil groups but got true")
+	}
+}
+
+func TestPrincipalHasEmptyGroups_IsExternal_IsFalse(t *testing.T) {
+	p := scim.Principal{
+		Groups: []scim.UserGroup{},
+	}
+
+	if p.IsExternal() {
+		t.Errorf("Expected false for principal with empty groups but got true")
+	}
+}
+
+func TestPrincipalIsOnlyInExternalGroup_IsExternal_IsTrue(t *testing.T) {
+	p := scim.Principal{
+		Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}},
+	}
+
+	if p.IsExternal() == false {
+		t.Errorf("Expected true for principal with groups '%v' but got false", p.Groups)
+	}
+}
+
+func TestPrincipalIsAlsoInExternalGroup_IsExternal_IsTrue(t *testing.T) {
+	p := scim.Principal{
+		Groups: []scim.UserGroup{
+			{Value: "4ABCFFFF-CCCE-435D-99F8-544656B98681"},
+			{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"},
+			{Value: "FFFFFFFF-CCCE-435D-99F8-544656B98681"},
+		},
+	}
+
+	if p.IsExternal() == false {
+		t.Errorf("Expected true for principal with groups '%v' but got false", p.Groups)
+	}
+}
