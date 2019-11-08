@@ -245,18 +245,16 @@ func TestRequestWithBadUrlEncodedAuthSessionIdCookie_ReturnsStatus500(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	const base64EncodedAuthSessionId = "abc%XX"
-	const authSessionId = "id"
-	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e3"}
-	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: base64EncodedAuthSessionId})
+	const badUrlEncodedAuthSessionId = "abc%XX"
+	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: badUrlEncodedAuthSessionId})
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	idpStub := test.NewIdpStub(principals, externalPrincipals)
 	defer idpStub.Close()
-	spy := responseSpy{httptest.NewRecorder()}
+	responseSpy := responseSpy{httptest.NewRecorder()}
 
-	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(spy, req)
+	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
 
-	if err := spy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
+	if err := responseSpy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
 	}
 	if handlerSpy.hasBeenCalled {
@@ -269,11 +267,9 @@ func TestGetSystemBaseUriFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const authSessionId = "eXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e4"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set("Authorization", "Bearer "+validAuthSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	idpStub := test.NewIdpStub(principals, externalPrincipals)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
@@ -292,11 +288,9 @@ func TestGetTenantIdFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const authSessionId = "fXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e4"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set("Authorization", "Bearer "+validAuthSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	idpStub := test.NewIdpStub(principals, externalPrincipals)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
