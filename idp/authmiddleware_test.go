@@ -8,8 +8,10 @@ import (
 	"github.com/d-velop/dvelop-sdk-go/idp"
 	"github.com/d-velop/dvelop-sdk-go/idp/idpclient"
 	"github.com/d-velop/dvelop-sdk-go/idp/test"
+	"github.com/google/go-cmp/cmp"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
@@ -19,221 +21,144 @@ import (
 
 var idpClient, _ = idpclient.New()
 
-// todo: Evaluate Table Driven Tests to reduce repetition cf. https://dave.cheney.net/2019/05/07/prefer-table-driven-tests
+const validAuthSessionId = "aXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 
-func TestGetRequestWithFalseAuthorizationType_RedirectsToIdp(t *testing.T) {
-	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	req.Header.Set("Authorization", "Basic adadbk")
-	handlerSpy := handlerSpy{}
+var principals = map[string]scim.Principal{
+	validAuthSessionId: {Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e1"},
+}
 
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
+const validExternalAuthSessionId = "1XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Cnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 
-	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
-		t.Error(err)
+var externalPrincipals = map[string]scim.Principal{
+	validExternalAuthSessionId: {Emails: []scim.UserValue{{"info@d-velop.de"}}, Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}}},
+}
+
+func TestNoAuthSessionId(t *testing.T) {
+	type result struct {
+		StatusCode int
+		Headers    http.Header
 	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
-		t.Error(err)
+	testcases := map[string]struct {
+		method  string
+		headers map[string]string
+		url     string
+		cookie  *http.Cookie
+		want    result
+	}{
+		// read function name and testcase name as one sentence. e.g. TestNoAuthSessionIdAndHeadRequestAndHtmlAccepted_Middleware_RedirectsToIdp
+		"AndHeadRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
+			method: http.MethodHead, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+		"AndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
+			method: http.MethodGet, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+		"ButBasicAuthorizationAndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
+			method: http.MethodGet, headers: map[string]string{"Authorization": "Basic adadbk", "Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+		"ButOtherCookieAndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
+			method: http.MethodGet, cookie: &http.Cookie{Name: "AnyCookie", Value: "adadbk"}, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+		"AndPostRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
+			method: http.MethodPost, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
+		"AndPutRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
+			method: http.MethodPut, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
+		"AndDeleteRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
+			method: http.MethodDelete, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
+		"AndPatchRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
+			method: http.MethodPatch, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest(tc.method, tc.url, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.cookie != nil {
+				req.AddCookie(tc.cookie)
+			}
+			for key, val := range tc.headers {
+				req.Header.Add(key, val)
+			}
+			responseSpy := responseSpy{httptest.NewRecorder()}
+			handlerSpy := &handlerSpy{}
+
+			idp.Authenticate(idpClient, nil, nil, false, discardLog, discardLog)(handlerSpy).ServeHTTP(responseSpy, req)
+
+			got := result{
+				StatusCode: responseSpy.Code,
+				Headers:    responseSpy.Header(),
+			}
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nexpected: %v\ngot     : %v", tc.want, got)
+			}
+			if handlerSpy.hasBeenCalled {
+				t.Error("inner handler should not have been called")
+			}
+		})
 	}
 }
 
-func TestGetRequestWithFalseCookie_RedirectsToIdp(t *testing.T) {
-	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
+func TestValidAuthSessionId(t *testing.T) {
+	type result struct {
+		Principal     scim.Principal
+		AuthSessionId string
 	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	req.AddCookie(&http.Cookie{Name: "AnyCookie", Value: "adadbk"})
-	handlerSpy := handlerSpy{}
+	testcases := map[string]struct {
+		method  string
+		headers map[string]string
+		url     string
+		cookie  *http.Cookie
+		want    result
+	}{
+		// read function name and testcase name as one sentence. e.g. TestValidAuthSessionIdAsBearerTokenAndGetRequest_Middleware_PopulatesContextWithPrincipalAndAuthSession
+		"AsBearerTokenAndGetRequest_Middleware_PopulatesContextWithPrincipalAndAuthSession": {
+			method: http.MethodGet, headers: map[string]string{"Authorization": "Bearer " + validAuthSessionId}, url: "/a/b?q1=x&q2=1",
+			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
+		"AsLowerCaseBearerTokenAndGetRequest_Middleware_PopulatesContextWithPrincipalAndAuthSession": {
+			method: http.MethodGet, headers: map[string]string{"Authorization": "bearer " + validAuthSessionId}, url: "/a/b?q1=x&q2=1",
+			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
+		"AsCookieAndGetRequest_Middleware_PopulatesContextWithPrincipalAndAuthSession": {
+			method: http.MethodGet, cookie: &http.Cookie{Name: "AuthSessionId", Value: url.QueryEscape(validAuthSessionId)}, url: "/a/b?q1=x&q2=1",
+			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
+	}
 
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(&handlerSpy).ServeHTTP(responseSpy, req)
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest(tc.method, tc.url, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.cookie != nil {
+				req.AddCookie(tc.cookie)
+			}
+			for key, val := range tc.headers {
+				req.Header.Add(key, val)
+			}
+			handlerSpy := &handlerSpy{}
+			idpStub := test.NewIdpStub(principals, externalPrincipals)
+			defer idpStub.Close()
 
-	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
-		t.Error(err)
-	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-}
+			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, discardLog, discardLog)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
-func TestHeadRequestWithoutAuthorizationInfos_RedirectsToIdp(t *testing.T) {
-	req, err := http.NewRequest("HEAD", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	handlerSpy := &handlerSpy{}
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
-
-	if err := responseSpy.assertStatusCodeIs(http.StatusFound); err != nil {
-		t.Error(err)
-	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-}
-
-func TestPostRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
-	req, err := http.NewRequest("POST", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	handlerSpy := &handlerSpy{}
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
-
-	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
-		t.Error(err)
-	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"WWW-Authenticate": "Bearer"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-}
-
-func TestPutRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
-	req, err := http.NewRequest("PUT", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	handlerSpy := &handlerSpy{}
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
-
-	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
-		t.Error(err)
-	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"WWW-Authenticate": "Bearer"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-}
-
-func TestDeleteRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
-	req, err := http.NewRequest("DELETE", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	handlerSpy := &handlerSpy{}
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
-
-	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
-		t.Error(err)
-	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"WWW-Authenticate": "Bearer"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-}
-
-func TestPatchRequestWithoutAuthorizationInfos_ReturnsStatus401(t *testing.T) {
-	req, err := http.NewRequest("PATCH", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-	handlerSpy := &handlerSpy{}
-	idp.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
-
-	if err := responseSpy.assertStatusCodeIs(http.StatusUnauthorized); err != nil {
-		t.Error(err)
-	}
-	if err := responseSpy.assertHeadersAre(map[string]string{"WWW-Authenticate": "Bearer"}); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
+			got := result{
+				Principal:     handlerSpy.principal,
+				AuthSessionId: handlerSpy.authSessionId,
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nexpected: %v\ngot     : %v", tc.want, got)
+			}
+		})
 	}
 }
 
 func returnFromCtx(value string) func(ctx context.Context) (string, error) {
 	return func(ctx context.Context) (string, error) { return value, nil }
-}
-
-func TestRequestWithBearerAuthorization_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
-	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const authSessionId = "aXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e1"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
-	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
-	defer idpStub.Close()
-
-	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
-
-	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
-		t.Error(err)
-	}
-	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestRequestWithLowerCaseBearerAuthorization_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
-	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const authSessionId = "bXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e2"}
-	req.Header.Set("Authorization", "bearer "+authSessionId)
-	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
-	defer idpStub.Close()
-
-	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
-
-	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
-		t.Error(err)
-	}
-	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestRequestWithAuthSessionIdCookie_PopulatesContextWithPrincipalAndAuthsession(t *testing.T) {
-	req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const base64EncodedAuthSessionId = "cXGxJeb0q%2b%2ffS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA%2fx7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf%2fi5eWuu7Duh%2bOTtTjMOt9w%3d%26Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	const authSessionId = "cXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e3"}
-	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: base64EncodedAuthSessionId})
-	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
-	defer idpStub.Close()
-
-	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
-
-	if err := handlerSpy.assertAuthSessionIdIs(authSessionId); err != nil {
-		t.Error(err)
-	}
-	if err := handlerSpy.assertPrincipalIs(principal); err != nil {
-		t.Error(err)
-	}
 }
 
 func TestRequestWithBadUrlEncodedAuthSessionIdCookie_ReturnsStatus500(t *testing.T) {
@@ -848,4 +773,9 @@ func (spy *responseSpy) assertHeadersAre(expectedHeaders map[string]string) erro
 func log(ctx context.Context, logmessage string) {
 	_ = ctx
 	fmt.Println(logmessage)
+}
+
+func discardLog(ctx context.Context, logmessage string) {
+	_ = ctx
+	_ = logmessage
 }
