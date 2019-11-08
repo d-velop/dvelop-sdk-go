@@ -544,34 +544,37 @@ func TestIdpSendsNoCacheHeader_CallsIdp(t *testing.T) {
 	}
 }
 
-func TestGetRequestWithoutAuthorizationInfosWithAcceptHeader(t *testing.T) {
+func TestNoAuthSessionIdAndGetRequestAndAcceptHeaderIs(t *testing.T) {
 
 	var testCases = []struct {
-		name             string
 		header           string
 		expectedRedirect bool
 	}{
-		{"empty", "", true},
-		{"exists", "text/", false},
-		{"wildcard,text", "text/*", true},
-		{"wildcard,any", "*/*", true},
-		{"wildcard,secondary", "application/json; q=1.0, */*; q=0.8", true},
-		{"exists", "text/html", true},
-		{"unknown-mimetype", "something/else", false},
-		{"exists,q=1", "text/html; q=1", true},
-		{"exists,q=1.0", "text/html; q=1.0", true},
-		{"exists,q=0.9", "text/html; q=0.9", true},
-		{"exists,q=0", "text/html; q=0", false},
-		{"exists,q=0.0", "text/html; q=0.0", false},
-		{"missing", "application/json", false},
-		{"secondary,q=0.9", "application/json; q=1.0, text/html; q=0.9", true},
-		{"secondary,q=0", "application/json; q=1.0, text/html; q=0", false},
-		{"secondary,q=1.0", "application/json; q=0.9, text/html; q=1.0", true},
-		{"secondary,q=0.0", "application/json; q=1.0, text/html; q=0.", false}, // broken header
+		{"", true},
+		{"text/", false},
+		{"text/*", true},
+		{"*/*", true},
+		{"application/json; q=1.0, */*; q=0.8", true},
+		{"text/html", true},
+		{"something/else", false},
+		{"text/html; q=1", true},
+		{"text/html; q=1.0", true},
+		{"text/html; q=0.9", true},
+		{"text/html; q=0", false},
+		{"text/html; q=0.0", false},
+		{"application/json", false},
+		{"application/json; q=1.0, text/html; q=0.9", true},
+		{"application/json; q=1.0, text/html; q=0", false},
+		{"application/json; q=0.9, text/html; q=1.0", true},
+		{"application/json; q=1.0, text/html; q=0.", false}, // broken header
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
+		name := testCase.header
+		if name == "" {
+			name = "Empty"
+		}
+		t.Run(name, func(t *testing.T) {
 
 			req, err := http.NewRequest("GET", "/myresource/subresource?query1=abc&query2=123", nil)
 			if err != nil {
