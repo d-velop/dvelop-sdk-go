@@ -90,7 +90,7 @@ func TestNoAuthSessionId(t *testing.T) {
 			responseSpy := responseSpy{httptest.NewRecorder()}
 			handlerSpy := &handlerSpy{}
 
-			idp.Authenticate(idpClient, nil, nil, false, discardLog, discardLog)(handlerSpy).ServeHTTP(responseSpy, req)
+			idp.Authenticate(idpClient, nil, nil, false, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 			got := result{
 				StatusCode: responseSpy.Code,
@@ -164,7 +164,7 @@ func TestInvalidAuthSessionId(t *testing.T) {
 			idpStub := test.NewIdpStub(principals, externalPrincipals)
 			defer idpStub.Close()
 
-			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), tc.allowExternalValidation, discardLog, discardLog)(handlerSpy).ServeHTTP(responseSpy, req)
+			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), tc.allowExternalValidation, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
 
 			got := result{
 				StatusCode: responseSpy.Code,
@@ -223,7 +223,7 @@ func TestValidAuthSessionId(t *testing.T) {
 			idpStub := test.NewIdpStub(principals, externalPrincipals)
 			defer idpStub.Close()
 
-			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, discardLog, discardLog)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 			got := result{
 				Principal:     handlerSpy.principal,
@@ -659,11 +659,6 @@ func (spy *responseSpy) assertHeadersAre(expectedHeaders map[string]string) erro
 }
 
 func log(ctx context.Context, logmessage string) {
-	_ = ctx
-	fmt.Println(logmessage)
-}
-
-func discardLog(ctx context.Context, logmessage string) {
 	_ = ctx
 	_ = logmessage
 }
