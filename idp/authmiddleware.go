@@ -71,19 +71,11 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				return
 			}
 			if authSessionId == "" {
-				acceptHeader := req.Header.Get("Accept")
-				if !isTextHtmlAccepted(acceptHeader) {
-					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
-					return
-				}
-
-				switch req.Method {
-				case "POST", "PUT", "DELETE", "PATCH":
-					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
-				default:
+				if isTextHtmlAccepted(req.Header.Get("Accept")) && req.Method == http.MethodGet || req.Method == http.MethodHead {
 					redirectToIdpLogin(rw, req)
+				} else {
+					rw.WriteHeader(http.StatusUnauthorized)
+					rw.Header().Set("WWW-Authenticate", "Bearer")
 				}
 				return
 			}
@@ -106,18 +98,11 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				return
 			}
 			if principal == nil {
-				acceptHeader := req.Header.Get("Accept")
-				if !isTextHtmlAccepted(acceptHeader) {
-					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
-					return
-				}
-				switch req.Method {
-				case "POST", "PUT", "DELETE", "PATCH":
-					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
-				default:
+				if isTextHtmlAccepted(req.Header.Get("Accept")) && req.Method == http.MethodGet || req.Method == http.MethodHead {
 					redirectToIdpLogin(rw, req)
+				} else {
+					rw.WriteHeader(http.StatusUnauthorized)
+					rw.Header().Set("WWW-Authenticate", "Bearer")
 				}
 				return
 			}
