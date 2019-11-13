@@ -8,10 +8,11 @@ import (
 	"regexp"
 )
 
-func NewIdpStub(principals map[string]scim.Principal, externalPrincipals map[string]scim.Principal) *httptest.Server {
+var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
+
+func NewIdpValidateStub(principals map[string]scim.Principal, externalPrincipals map[string]scim.Principal) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/identityprovider/validate" {
-			var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
 			authorizationHeader := r.Header.Get("Authorization")
 			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
 
@@ -34,6 +35,23 @@ func NewIdpStub(principals map[string]scim.Principal, externalPrincipals map[str
 				} else {
 					http.Error(w, "", http.StatusUnauthorized)
 				}
+			}
+			return
+		}
+		http.Error(w, "", http.StatusNotFound)
+	}))
+}
+
+func NewIdpUsersStub(authSessionIdFromAuthorizedCaller string, existingPrincipal scim.Principal) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/identityprovider/scim/users/"+existingPrincipal.Id {
+			authorizationHeader := r.Header.Get("Authorization")
+			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
+
+			if authToken != authSessionIdFromAuthorizedCaller {
+				http.Error(w, `{"msg":"user unauthorized"}`, http.StatusForbidden)
+			} else {
+				_ = json.NewEncoder(w).Encode(existingPrincipal)
 			}
 			return
 		}

@@ -161,7 +161,7 @@ func TestInvalidAuthSessionId(t *testing.T) {
 			}
 			responseSpy := responseSpy{httptest.NewRecorder()}
 			handlerSpy := &handlerSpy{}
-			idpStub := test.NewIdpStub(principals, externalPrincipals)
+			idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 			defer idpStub.Close()
 
 			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), tc.allowExternalValidation, log, log)(handlerSpy).ServeHTTP(responseSpy, req)
@@ -220,7 +220,7 @@ func TestValidAuthSessionId(t *testing.T) {
 				req.Header.Add(key, val)
 			}
 			handlerSpy := &handlerSpy{}
-			idpStub := test.NewIdpStub(principals, externalPrincipals)
+			idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 			defer idpStub.Close()
 
 			idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), false, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
@@ -248,7 +248,7 @@ func TestRequestWithBadUrlEncodedAuthSessionIdCookie_ReturnsStatus500(t *testing
 	const badUrlEncodedAuthSessionId = "abc%XX"
 	req.AddCookie(&http.Cookie{Name: "AuthSessionId", Value: badUrlEncodedAuthSessionId})
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 	responseSpy := responseSpy{httptest.NewRecorder()}
 
@@ -269,7 +269,7 @@ func TestGetSystemBaseUriFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	}
 	req.Header.Set("Authorization", "Bearer "+validAuthSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
@@ -290,7 +290,7 @@ func TestGetTenantIdFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	}
 	req.Header.Set("Authorization", "Bearer "+validAuthSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
@@ -425,7 +425,7 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 	}
 	principalT1 := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e7"}
 	reqTenant1.Header.Set("Authorization", "Bearer "+authSessionId)
-	idpStub1 := test.NewIdpStub(map[string]scim.Principal{authSessionId: principalT1}, nil)
+	idpStub1 := test.NewIdpValidateStub(map[string]scim.Principal{authSessionId: principalT1}, nil)
 	defer idpStub1.Close()
 	handlerSpy1 := handlerSpy{}
 	idp.Authenticate(idpClient, returnFromCtx(idpStub1.URL), returnFromCtx("1"), false, log, log)(&handlerSpy1).ServeHTTP(httptest.NewRecorder(), reqTenant1)
@@ -440,7 +440,7 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 	}
 	principalT2 := scim.Principal{Id: "0bbbf1b6-017a-449a-ad5f-9723d28223e7"}
 	reqTenant2.Header.Set("Authorization", "Bearer "+authSessionId)
-	idpStub2 := test.NewIdpStub(map[string]scim.Principal{authSessionId: principalT2}, nil)
+	idpStub2 := test.NewIdpValidateStub(map[string]scim.Principal{authSessionId: principalT2}, nil)
 	defer idpStub2.Close()
 	handlerSpy2 := handlerSpy{}
 	idp.Authenticate(idpClient, returnFromCtx(idpStub2.URL), returnFromCtx("2"), false, log, log)(&handlerSpy2).ServeHTTP(httptest.NewRecorder(), reqTenant2)
@@ -458,7 +458,7 @@ func TestRequestAsExternalUserAndExternalUserValidationIsNotAllowed_ReturnsStatu
 	const authSessionId = "hXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
-	idpStub := test.NewIdpStub(nil, map[string]scim.Principal{authSessionId: {Emails: []scim.UserValue{{"info@d-velop.de"}}, Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}}}})
+	idpStub := test.NewIdpValidateStub(nil, map[string]scim.Principal{authSessionId: {Emails: []scim.UserValue{{"info@d-velop.de"}}, Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}}}})
 	defer idpStub.Close()
 	spy := responseSpy{httptest.NewRecorder()}
 
@@ -480,7 +480,7 @@ func TestRequestAsExternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	principal := scim.Principal{Emails: []scim.UserValue{{"info@d-velop.de"}}, Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}}}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := new(handlerSpy)
-	idpStub := test.NewIdpStub(nil, map[string]scim.Principal{authSessionId: principal})
+	idpStub := test.NewIdpValidateStub(nil, map[string]scim.Principal{authSessionId: principal})
 	defer idpStub.Close()
 
 	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
@@ -502,7 +502,7 @@ func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	principal := scim.Principal{Id: "7bbbf1b6-017a-449a-ad5f-9723d28223e1"}
 	req.Header.Set("Authorization", "Bearer "+authSessionId)
 	handlerSpy := new(handlerSpy)
-	idpStub := test.NewIdpStub(map[string]scim.Principal{authSessionId: principal}, nil)
+	idpStub := test.NewIdpValidateStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
 
 	idp.Authenticate(idpClient, returnFromCtx(idpStub.URL), returnFromCtx("1"), true, log, log)(handlerSpy).ServeHTTP(httptest.NewRecorder(), req)

@@ -73,6 +73,8 @@ func New(options ...Option) (*client, error) {
 	return c, nil
 }
 
+var maxAgeRegex = regexp.MustCompile(`(?i)max-age=([^,\s]*)`) // cf. https://regex101.com/
+
 /*
 Validate checks if the authSessionId is valid for the tenant specified by systemBaseUri and tenantId.
 
@@ -121,22 +123,10 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 		return &p, nil
 	}
 
-	baseUri, baseParseErr := url.Parse(systemBaseUri)
-	if baseParseErr != nil {
-		return nil, baseParseErr
-	}
-	validatePath, _ := url.Parse("/identityprovider/validate?allowExternalValidation=true")
-	validateEndpoint := baseUri.ResolveReference(validatePath)
-
-	req, nRErr := http.NewRequestWithContext(ctx, http.MethodGet, validateEndpoint.String(), nil)
-	if nRErr != nil {
-		return nil, fmt.Errorf("can't create http request for '%s' because: %v", validateEndpoint, nRErr)
-	}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
-
-	resp, doErr := c.httpClient.Do(req)
+	endpoint := "/identityprovider/validate?allowExternalValidation=true"
+	resp, doErr := c.httpGet(ctx, systemBaseUri, authSessionId, endpoint)
 	if doErr != nil {
-		return nil, fmt.Errorf("error calling http GET on '%s' because: %w", validateEndpoint, doErr)
+		return nil, fmt.Errorf("error calling http GET on '%s' because: %w", endpoint, doErr)
 	}
 	defer resp.Body.Close()
 
@@ -144,7 +134,7 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 	case http.StatusOK:
 		var p scim.Principal
 		if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-			return nil, fmt.Errorf("response from Identityprovider '%s' is no valid JSON because: %v", validateEndpoint, err)
+			return nil, fmt.Errorf("response from Identityprovider '%s' is no valid JSON because: %v", endpoint, err)
 		}
 		var validFor time.Duration = 0
 		cacheControlHeader := resp.Header.Get("Cache-Control")
@@ -164,9 +154,59 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 		return nil, nil
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
+		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
 			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
 	}
 }
 
-var maxAgeRegex = regexp.MustCompile(`(?i)max-age=([^,\s]*)`) // cf. https://regex101.com/
+/*
+GetPrincipalById gets the principal specified by principalId for the tenant specified by systemBaseUri and tenantId.
+The authSessionId is used to authorize the request.
+*/
+func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, principalId string) (*scim.Principal, error) {
+	// tenantid not used so far but included to implement a cache without changing the method signature
+	endpoint := "/identityprovider/scim/users/" + principalId
+	resp, doErr := c.httpGet(ctx, systemBaseUri, authSessionId, endpoint)
+	if doErr != nil {
+		return nil, fmt.Errorf("error calling http GET on '%s' because: %w", endpoint, doErr)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var p scim.Principal
+		if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+			return nil, fmt.Errorf("response from Identityprovider '%s' is no valid JSON because: %v", endpoint, err)
+		}
+		return &p, nil
+	case http.StatusForbidden:
+		responseMsg, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("user is not allowed to invoke '%s'. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
+			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+	case http.StatusNotFound:
+		responseMsg, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("user '%s' doesn't exist. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
+			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+	default:
+		responseMsg, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
+			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+	}
+}
+
+func (c *client) httpGet(ctx context.Context, systemBaseUri string, authSessionId string, absolutePath string) (*http.Response, error) {
+	baseUri, baseParseErr := url.Parse(systemBaseUri)
+	if baseParseErr != nil {
+		return nil, baseParseErr
+	}
+	resourcePath, _ := url.Parse(absolutePath)
+	resourceEndpoint := baseUri.ResolveReference(resourcePath)
+
+	req, nRErr := http.NewRequestWithContext(ctx, http.MethodGet, resourceEndpoint.String(), nil)
+	if nRErr != nil {
+		return nil, fmt.Errorf("can't create http request for '%s' because: %v", resourceEndpoint, nRErr)
+	}
+	req.Header.Set("Authorization", "Bearer "+authSessionId)
+
+	return c.httpClient.Do(req)
+}

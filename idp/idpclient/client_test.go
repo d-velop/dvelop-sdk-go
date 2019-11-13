@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -49,7 +50,7 @@ var externalPrincipals = map[string]scim.Principal{
 const invalidAuthSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Dnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 
 func TestValidAuthSessionIdOfInternalUser_Validate_ReturnsInternalPrincipal(t *testing.T) {
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 
 	p, err := defaultClient.Validate(context.Background(), idpStub.URL, "1", validAuthSessionId)
@@ -66,7 +67,7 @@ func TestValidAuthSessionIdOfInternalUser_Validate_ReturnsInternalPrincipal(t *t
 }
 
 func TestValidAuthSessionIdOfExternalUser_Validate_ReturnsExternalPrincipal(t *testing.T) {
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 
 	p, err := defaultClient.Validate(context.Background(), idpStub.URL, "1", validExternalAuthSessionId)
@@ -83,7 +84,7 @@ func TestValidAuthSessionIdOfExternalUser_Validate_ReturnsExternalPrincipal(t *t
 }
 
 func TestAuthSessionIdIsInvalid_Validate_ReturnsNilPrincipal(t *testing.T) {
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 
 	p, err := defaultClient.Validate(context.Background(), idpStub.URL, "1", invalidAuthSessionId)
@@ -300,7 +301,7 @@ func TestContextWithTimeoutAndRequestTimedOut_Validate_ReturnsTimeout(t *testing
 }
 
 func TestContextWithTimeoutAndRequestDoesntTimeOut_Validate_ReturnsPrincipal(t *testing.T) {
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -361,7 +362,7 @@ func (pc *PrincipalCacheSpy) Set(key string, item interface{}, cacheDuration tim
 }
 
 func TestCustomPrincipalCacheSpecified_New_UsesCustomPrincipalCache(t *testing.T) {
-	idpStub := test.NewIdpStub(principals, externalPrincipals)
+	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
 
 	spy := &PrincipalCacheSpy{}
@@ -377,5 +378,59 @@ func TestCustomPrincipalCacheSpecified_New_UsesCustomPrincipalCache(t *testing.T
 	}
 	if spy.Invocations <= 0 {
 		t.Error("Expected custom cache to be used. But custom cache wasn't used")
+	}
+}
+
+func TestCallerIsAuthorizedAndPrincipalExists_GetPrincipalById_ReturnsPrincipal(t *testing.T) {
+	const authSessionIdFromAuthorizedCaller = validAuthSessionId
+	existingPrincipal := scim.Principal{Id: "719052ec-0c46-4db4-9cc4-f57e6492d25d"}
+	idpStub := test.NewIdpUsersStub(authSessionIdFromAuthorizedCaller, existingPrincipal)
+
+	got, err := defaultClient.GetPrincipalById(context.Background(), idpStub.URL, "1", authSessionIdFromAuthorizedCaller, existingPrincipal.Id)
+
+	if err != nil {
+		t.Error(err)
+	}
+	if diff := cmp.Diff(&existingPrincipal, got); diff != "" {
+		t.Errorf("\nexpected: %v\ngot     : %v", &existingPrincipal, got)
+	}
+}
+
+func TestCallerIsAuthorizedAndPrincipalDoesntExist_GetPrincipalById_ReturnsError(t *testing.T) {
+	const authSessionIdFromAuthorizedCaller = validAuthSessionId
+	existingPrincipal := scim.Principal{Id: "719052ec-0c46-4db4-9cc4-f57e6492d25d"}
+	idpStub := test.NewIdpUsersStub(authSessionIdFromAuthorizedCaller, existingPrincipal)
+
+	noneExistingPrincipalId := "83db85b2-89d3-4586-b455-ad041ff38195"
+	got, err := defaultClient.GetPrincipalById(context.Background(), idpStub.URL, "1", authSessionIdFromAuthorizedCaller, noneExistingPrincipalId)
+
+	if err == nil || got != nil {
+		t.Errorf("expected an error because principal with id '%s' doesn't exist but got no error", noneExistingPrincipalId)
+	}
+}
+
+func TestCallerNotAuthorizedAndPrincipalExists_GetPrincipalById_ReturnsError(t *testing.T) {
+	const authSessionIdFromUnauthorizedCaller = invalidAuthSessionId
+	const authSessionIdFromAuthorizedCaller = validAuthSessionId
+	existingPrincipal := scim.Principal{Id: "719052ec-0c46-4db4-9cc4-f57e6492d25d"}
+	idpStub := test.NewIdpUsersStub(authSessionIdFromAuthorizedCaller, existingPrincipal)
+
+	got, err := defaultClient.GetPrincipalById(context.Background(), idpStub.URL, "1", authSessionIdFromUnauthorizedCaller, existingPrincipal.Id)
+
+	if err == nil || got != nil {
+		t.Error("expected an error because caller is not authorized to call Idp but got no error")
+	}
+}
+
+func TestIdpReturnsUnexpectedStatusCode_GetPrincipalById_ReturnsError(t *testing.T) {
+	const authSessionIdFromAuthorizedCaller = validAuthSessionId
+	existingPrincipal := scim.Principal{Id: "719052ec-0c46-4db4-9cc4-f57e6492d25d"}
+	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "error", http.StatusConflict)
+	}))
+	got, err := defaultClient.GetPrincipalById(context.Background(), idpStub.URL, "1", authSessionIdFromAuthorizedCaller, existingPrincipal.Id)
+
+	if err == nil || got != nil {
+		t.Error("expected an error because idp returned unexpected http error")
 	}
 }
