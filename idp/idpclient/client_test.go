@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +13,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/idpclient"
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
