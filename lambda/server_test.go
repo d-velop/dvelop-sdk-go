@@ -12,10 +12,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/d-velop/dvelop-sdk-go/lambda"
-
-	"context"
-
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/d-velop/dvelop-sdk-go/lambda"
 )

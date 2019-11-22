@@ -41,7 +41,7 @@ const timeDiff = 5 * time.Minute
 // The parameter for the "appSecret" is the base64 decoded app secret string of your app as byte array.
 //
 // More information about signature algorithm please visit the following documentation:
-// 	coming soon...
+// 	https://developer.d-velop.de/documentation/ccapi/en/cloud-center-api-199623589.html
 //
 // Example:
 //	func main() {
@@ -126,7 +126,7 @@ type requestSignaturValidator struct {
 // The parameter for the "appSecret" is the base64 decoded app secret string of your app as byte array.
 //
 // More information about signature algorithm please visit the following documentation on
-// 	coming soon...
+// 	https://developer.d-velop.de/documentation/ccapi/en/cloud-center-api-199623589.html
 //
 // Example:
 //	func eventHandler() http.Handler {

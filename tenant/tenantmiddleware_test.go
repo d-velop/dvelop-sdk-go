@@ -11,11 +11,6 @@ import (
 	"testing"
 
 	"github.com/d-velop/dvelop-sdk-go/tenant"
-
-	"encoding/base64"
-
-	"crypto/hmac"
-	"crypto/sha256"
 )
 
 const systemBaseUriHeader = "x-dv-baseuri"

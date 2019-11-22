@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )

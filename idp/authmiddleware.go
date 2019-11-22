@@ -12,11 +12,6 @@ import (
 	"strings"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
-
-	"strconv"
-	"strings"
-
-	"github.com/patrickmn/go-cache"
 )
 
 type contextKey string

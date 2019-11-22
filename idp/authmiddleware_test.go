@@ -11,9 +11,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/d-velop/dvelop-sdk-go/idp"
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
-
 	"time"
 
 	"github.com/d-velop/dvelop-sdk-go/idp"
