@@ -101,6 +101,11 @@ For example the test
 for a `divide` function should be named `TestDivisorIsZero_Divide_ReturnsDivsionByZeroError` or 
 `TestDivisorIsZero_ReturnsDivsionByZeroError`.
 
+## API Clients
+Use sensible defaults for the creation of API Clients so that the default use case is easy to use and
+provide [functional options](https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis)
+to change these defaults. 
+
 ## Commit message
 
 Please use the following template for commit messages which is derived from 
