@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
@@ -182,15 +183,15 @@ func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, ten
 	case http.StatusForbidden:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
 		return nil, fmt.Errorf("user is not allowed to invoke '%s'. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+			resp.Request.URL, resp.StatusCode, responseMsg)
 	case http.StatusNotFound:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
 		return nil, fmt.Errorf("user '%s' doesn't exist. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+			resp.Request.URL, resp.StatusCode, responseMsg)
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
 		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+			resp.Request.URL, resp.StatusCode, responseMsg)
 	}
 }
 
