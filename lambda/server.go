@@ -28,7 +28,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -126,24 +125,11 @@ func mapMethod(e *events.APIGatewayProxyRequest) string {
 func mapURL(e *events.APIGatewayProxyRequest) *url.URL {
 	u := &url.URL{Path: e.Path}
 	if e.QueryStringParameters != nil {
-		qspKeys := make([]string, 0, len(e.QueryStringParameters))
-		for k := range e.QueryStringParameters {
-			qspKeys = append(qspKeys, k)
+		values := make(url.Values)
+		for key, value := range e.QueryStringParameters {
+			values.Add(key, value)
 		}
-		sort.Strings(qspKeys)
-
-		var buf bytes.Buffer
-		var l = len(e.QueryStringParameters)
-
-		for i, k := range qspKeys {
-			buf.WriteString(k)
-			buf.WriteString("=")
-			buf.WriteString(e.QueryStringParameters[k])
-			if i < l-1 {
-				buf.WriteString("&")
-			}
-		}
-		u.RawQuery = buf.String()
+		u.RawQuery = values.Encode()
 	}
 	return u
 }

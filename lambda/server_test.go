@@ -76,6 +76,7 @@ func TestAdaptor_InvokesHandlerWithCorrectURL(t *testing.T) {
 	// sort query parameter by key
 	invokeAdaptorFunc(t, &events.APIGatewayProxyRequest{Path: "/path", QueryStringParameters: map[string]string{"bar": "2", "foo": "1"}}).invokesHandlerWithURL(&url.URL{Path: "/path", RawQuery: "bar=2&foo=1"})
 	invokeAdaptorFunc(t, &events.APIGatewayProxyRequest{Path: "/path", QueryStringParameters: map[string]string{"foo": "1", "bar": "2"}}).invokesHandlerWithURL(&url.URL{Path: "/path", RawQuery: "bar=2&foo=1"})
+	invokeAdaptorFunc(t, &events.APIGatewayProxyRequest{Path: "/path", QueryStringParameters: map[string]string{"foo": "foo+bar@test.de", "bar": "2"}}).invokesHandlerWithURL(&url.URL{Path: "/path", RawQuery: "bar=2&foo=foo%2Bbar%40test.de"})
 }
 
 func (tr *testresult) invokesHandlerWithURL(expected *url.URL) {
