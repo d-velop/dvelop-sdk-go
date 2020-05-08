@@ -2,14 +2,13 @@ package requestsignature_test
 
 import (
 	"bytes"
-	"fmt"
-	"io/ioutil"
+	"encoding/base64"
+	"encoding/json"
+	"github.com/d-velop/dvelop-sdk-go/requestsignature"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/d-velop/dvelop-sdk-go/requestsignature"
 )
 
 const timestampHeader = "x-dv-signature-timestamp"
@@ -19,275 +18,458 @@ const authorizationHeader = "authorization"
 
 const algorithm = "DV1-HMAC-SHA256"
 
-func TestHandleSignMiddleware_HappyPath_Works(t *testing.T) {
-	body := []byte(`{"type":"subscribe","tenantId":"vw","baseUri":"https://myfancy.d-velop.cloud"}`)
-	req, err := http.NewRequest("POST", "https://myapp.service.d-velop.cloud/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+func TestRequestSigner_ValidateSignedRequest_HappyPath_Working(t *testing.T) {
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
 	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set(timestampHeader, "2019-08-16T12:00:27Z")
-	req.Header.Set(algorithmHeader, algorithm)
-	req.Header.Set(signedHeadersHeader, "x-dv-signature-timestamp,x-dv-signature-algorithm,x-dv-signature-headers")
-	req.Header.Set(authorizationHeader, "Bearer 9174da8f8b1b2ce1acb7cee0b412b4f15c882746a420f8ca1ca955823d13becc")
-	handlerSpy := handlerSpy{}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-
-	timeNow := func() time.Time {
-		location, _ := time.LoadLocation("Europe/Berlin")
-		return time.Date(2019, time.August, 16, 14, 00, 27, 0, location)
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	requestsignature.HandleSignaturValidation([]byte("foobar"), timeNow)(&handlerSpy).ServeHTTP(responseSpy, req)
-	if err := responseSpy.assertStatusCodeIs(200); err != nil {
-		t.Error(err)
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
 	}
-}
 
-func TestHandleSignMiddleware_AppSecretNotSet_Returns500(t *testing.T) {
-	req, _ := http.NewRequest("GET", "https://foobar.com", nil)
-	h := handlerSpy{}
-	w := responseSpy{httptest.NewRecorder()}
-	requestsignature.HandleSignaturValidation(nil, nil)(&h).ServeHTTP(w, req)
-	if err := w.assertStatusCodeIs(500); err != nil {
-		t.Error(err)
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
 	}
-}
 
-// req.method != POST
-func TestHandleSignMiddleware_WrongHttpMethodIsUsed_Returns405(t *testing.T) {
-	req, _ := http.NewRequest("GET", "https://foobar.com", nil)
-	h := handlerSpy{}
-	w := responseSpy{httptest.NewRecorder()}
-	requestsignature.HandleSignaturValidation([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
-	if err := w.assertStatusCodeIs(405); err != nil {
-		t.Error(err)
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
 	}
-}
 
-// wrong life cylce event path
-func TestHandleSignMiddleware_PathIsNotLifeCylceEventPath_Returns400(t *testing.T) {
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	h := handlerSpy{}
-	w := responseSpy{httptest.NewRecorder()}
-	requestsignature.HandleSignaturValidation([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
-	if err := w.assertStatusCodeIs(400); err != nil {
-		t.Error(err)
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
 	}
-}
 
-// req.Header.Accept wrong
-func TestHandleSignMiddleware_WrongAcceptHeaderUsed_Returns400(t *testing.T) {
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar/dvelop-cloud-lifecycle-event", nil)
-	h := handlerSpy{}
-	w := responseSpy{httptest.NewRecorder()}
-	requestsignature.HandleSignaturValidation([]byte("foobar"), nil)(&h).ServeHTTP(w, req)
-	if err := w.assertStatusCodeIs(400); err != nil {
-		t.Error(err)
-	}
-}
-
-// wrong sign found
-func TestHandleSignMiddleware_RequestHasInvalidSignature_Returns403(t *testing.T) {
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar/dvelop-cloud-lifecycle-event", nil)
-	req.Header.Set("content-type", "application/json")
-	h := handlerSpy{}
-	w := responseSpy{httptest.NewRecorder()}
-	requestsignature.HandleSignaturValidation([]byte("foobar"), time.Now)(&h).ServeHTTP(w, req)
-	if err := w.assertStatusCodeIs(403); err != nil {
-		t.Error(err)
-	}
-}
-
-type handlerSpy struct {
-	hasBeenCalled bool
-}
-
-func (spy *handlerSpy) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	spy.hasBeenCalled = true
-}
-
-type responseSpy struct {
-	*httptest.ResponseRecorder
-}
-
-func (spy *responseSpy) assertStatusCodeIs(expectedStatusCode int) error {
-	if status := spy.Code; status != expectedStatusCode {
-		return fmt.Errorf("handler returned wrong status code: got %v want %v", status, expectedStatusCode)
-	}
-	return nil
-}
-
-// working
-func TestRequestSigner_ValidateSignedRequest_HappyPath_Works(t *testing.T) {
-	getNow := func() time.Time {
-		location, _ := time.LoadLocation("Europe/Berlin")
-		return time.Date(2019, time.August, 5, 13, 39, 27, 4711, location)
-	}
-	dto := `{"type": "subscribe","tenantId":"vw","baseUri":"https://mycloud.d-velop.cloud"}`
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", bytes.NewBuffer([]byte(dto)))
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer bb7f9f2c18785bd4c28ab3ea298d19c7960032cad8307d2d6c42bba9051d3aec")
-	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:39:27Z")
-	req.Header.Set("x-dv-signature-headers", "x-dv-signuature-headers, x-dv-signature-algorithm, x-dv-signature-timestamp")
-	req.Header.Set("x-dv-signature-algorithm", "DV1-HMAC-SHA256")
-
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
-	err := requestSigner.ValidateSignedRequest(req)
+	validator := requestsignature.NewRequestSigner(appSecret,now)
+	err = validator.ValidateSignedRequest(req)
 	if err != nil {
-		t.Errorf("no error expected but got error %v", err)
+		t.Errorf("got error %v but no error expected", err)
 	}
-	body, err := ioutil.ReadAll(req.Body)
+}
+
+func TestRequestSigner_ValidateSignedRequest_AuthorationHeaderInvalid_ReturnError(t *testing.T) {
+	wantErrorMessage := "wrong authorization header. Got 12783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104d want 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c"
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
 	if err != nil {
-		t.Errorf("get body after validate request failed: %v", err)
-		return
-	}
-	if strBody := string(body); strBody != dto {
-		t.Errorf("wrong body found after validate request: got %v want %v", strBody, dto)
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-}
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	}
 
-func TestRequestSigner_ValidateSignedRequest_AppSecretNotConfigured_ReturnsError(t *testing.T) {
-	requestSigner := requestsignature.NewRequestSignaturValidator(nil, nil)
-	err := requestSigner.ValidateSignedRequest(nil)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
 	}
-	if expectedError := "app secret has not been configured"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
-	}
-}
 
-// invalid accept header
-func TestRequestSigner_ValidateSignedRequest_WrongAcceptHeaderInRequest_ReturnsError(t *testing.T) {
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), nil)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 12783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104d",
+		"Content-Type": 			"application/json",
 	}
-	if expectedError := "wrong accept header found. Got  want application/json"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
-	}
-}
 
-// authorization header missing on request
-func TestRequestSigner_ValidateSignedRequest_AuthorizationHeaderMissingInRequest_ReturnsError(t *testing.T) {
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("content-type", "application/json")
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), nil)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
 	}
-	if expectedError := "authorization header missing"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
+
+	validator := requestsignature.NewRequestSigner(appSecret,now)
+	err = validator.ValidateSignedRequest(req)
+	if err != nil {
+		if err.Error()!=wantErrorMessage {
+			t.Errorf("wrong error returned: got %v want %v", err, wantErrorMessage)
+		}
+	} else {
+		t.Errorf("no error returned, but want error %v", wantErrorMessage)
 	}
 }
 
-// invalid bearer token found
-func TestRequestSigner_ValidateSignedRequest_AuthorizationBearerTokenInvalid_ReturnsError(t *testing.T) {
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer foobar")
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), nil)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+func TestRequestSigner_ValidateSignedRequest_WithWrongDto_ReturnError(t *testing.T) {
+	wantErrorMessage := "wrong authorization header. Got 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c want daba3a1deb11b646540bcb42161ea0003cf6ca6c1c3282d83e8c80e91cfcd9f9"
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
-	if expectedError := "found authorization header is not a valid Bearer token. Got Bearer foobar"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
+
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	}
+
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://xyz.d-velop.cloud",
+	}
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	validator := requestsignature.NewRequestSigner(appSecret,now)
+	err = validator.ValidateSignedRequest(req)
+	if err != nil {
+		if err.Error()!=wantErrorMessage {
+			t.Errorf("wrong error returned: got %v want %v", err, wantErrorMessage)
+		}
+	} else {
+		t.Errorf("no error returned, but want error %v", wantErrorMessage)
 	}
 }
 
-// time stamp is to much in the past
-func TestRequestSigner_ValidateSignedRequest_TimestampIs10MinutesInThePast_ReturnsError(t *testing.T) {
-	getNow := func() time.Time {
-		location, _ := time.LoadLocation("Europe/Berlin")
-		return time.Date(2019, time.August, 5, 13, 39, 27, 4711, location)
+func TestRequestSigner_ValidateSignedRequest_RequestTimeouted_ReturnError(t *testing.T) {
+	wantErrorMessage := "request is timed out: timestamp from request: 2019-08-09T08:49:42Z, current time: 2019-08-09T09:49:45Z"
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer 0adf")
-	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:29:27Z")
-
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,9,49,45,0,time.UTC)
 	}
-	if expectedError := "request is timed out: timestamp from request: 2019-08-05T11:29:27Z, current time: 2019-08-05T11:39:27Z"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
+
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
+	}
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	validator := requestsignature.NewRequestSigner(appSecret,now)
+	err = validator.ValidateSignedRequest(req)
+	if err != nil {
+		if err.Error()!=wantErrorMessage {
+			t.Errorf("wrong error returned: got %v want %v", err, wantErrorMessage)
+		}
+	} else {
+		t.Errorf("no error returned, but want error %v", wantErrorMessage)
 	}
 }
 
-// time stamp is to much in the future
-func TestRequestSigner_ValidateSignedRequest_TimestampIs10MinutesInTheFuture_ReturnsError(t *testing.T) {
-	getNow := func() time.Time {
-		location, _ := time.LoadLocation("Europe/Berlin")
-		return time.Date(2019, time.August, 5, 13, 39, 27, 4711, location)
+func TestHandleSignMiddleware_HappyPath_Working(t *testing.T) {
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer 0adf")
-	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:49:27Z")
-
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
 	}
-	if expectedError := "request is timed out: timestamp from request: 2019-08-05T11:49:27Z, current time: 2019-08-05T11:39:27Z"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
+
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
+	}
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	handlerCalled := false
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		handlerCalled = true
+		t.Log("handler was called")
+	}
+
+	rr := httptest.NewRecorder()
+	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusOK)
+	}
+	if !handlerCalled {
+		t.Fatalf("test handler not called")
 	}
 }
 
-// payload missing
-func TestRequestSigner_ValidateSignedRequest_PayloadMissingInRequest_ReturnsError(t *testing.T) {
-	getNow := func() time.Time {
-		location, _ := time.LoadLocation("Europe/Berlin")
-		return time.Date(2019, time.August, 5, 13, 39, 27, 4711, location)
+func TestHandleSignMiddleware_AppSecretMissing_Return500InternalServerError(t *testing.T) {
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
 	}
 
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", nil)
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer 0adf")
-	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:39:27Z")
-
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
 	}
-	if expectedError := "payload missing"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	handlerCalled := false
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		handlerCalled = true
+		t.Log("handler was called")
+	}
+
+	rr := httptest.NewRecorder()
+	requestsignature.HandleSignMiddleware(nil,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusInternalServerError)
+	}
+	if handlerCalled {
+		t.Fatalf("Handler was called, but should not be called.")
 	}
 }
 
-// authorization hash not equals calculated hash
-func TestRequestSigner_ValidateSignedRequest_InvalidAuthorizationBearerToken_ReturnsError(t *testing.T) {
-	getNow := func() time.Time {
-		location, _ := time.LoadLocation("Europe/Berlin")
-		return time.Date(2019, time.August, 5, 13, 39, 27, 4711, location)
+func TestHandleSignMiddleware_MiddlewareWasCalledByWrongMethod_Return405MethodNotAllowed(t *testing.T) {
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
-	dto := `{"type": "subscribe","tenantId":"vw","baseUri":"https://mycloud.d-velop.cloud"}`
-	req, _ := http.NewRequest("POST", "https://foobar.com/foo/bar", bytes.NewBuffer([]byte(dto)))
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer 0adf")
-	req.Header.Set("x-dv-signature-timestamp", "2019-08-05T11:39:27Z")
-	req.Header.Set("x-dv-signature-headers", "x-dv-signuature-headers, x-dv-signature-algorithm, x-dv-signature-timestamp")
-	req.Header.Set("x-dv-signature-algorithm", "DV1-HMAC-SHA256")
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	}
 
-	requestSigner := requestsignature.NewRequestSignaturValidator([]byte("foobar"), getNow)
-	err := requestSigner.ValidateSignedRequest(req)
-	if err == nil {
-		t.Errorf("error expected but no error returned")
-		return
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
 	}
-	if expectedError := "wrong authorization header. Got 0adf want bb7f9f2c18785bd4c28ab3ea298d19c7960032cad8307d2d6c42bba9051d3aec"; err.Error() != expectedError {
-		t.Errorf("wrong error returned: got %v want %v", err, expectedError)
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodGet, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	handlerCalled := false
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		handlerCalled = true
+		t.Log("handler was called")
+	}
+
+	rr := httptest.NewRecorder()
+	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+
+	if status := rr.Code; status != http.StatusMethodNotAllowed {
+		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusMethodNotAllowed)
+	}
+	if handlerCalled {
+		t.Fatalf("Handler was called, but should not be called.")
+	}
+}
+
+func TestHandleSignMiddleware_MiddlewareWasCalledByPath_Return400BadRequest(t *testing.T) {
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
+	}
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	}
+
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
+	}
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event/wrongpath", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	handlerCalled := false
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		handlerCalled = true
+		t.Log("handler was called")
+	}
+
+	rr := httptest.NewRecorder()
+	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusBadRequest)
+	}
+	if handlerCalled {
+		t.Fatalf("Handler was called, but should not be called.")
+	}
+}
+
+func TestHandleSignMiddleware_MiddlewareWasCalledWithoutContentTypeHeader_Return400BadRequest(t *testing.T) {
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
+	}
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	}
+
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"id",
+		"https://someone.d-velop.cloud",
+	}
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		//"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	handlerCalled := false
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		handlerCalled = true
+		t.Log("handler was called")
+	}
+
+	rr := httptest.NewRecorder()
+	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusBadRequest)
+	}
+	if handlerCalled {
+		t.Fatalf("Handler was called, but should not be called.")
+	}
+}
+
+func TestHandleSignMiddleware_MiddlewareWasCalledButSignatureIsInvalid_Return403Forbidden(t *testing.T) {
+	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
+	if err != nil {
+		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
+	}
+	now := func()time.Time {
+		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	}
+
+	dto := requestsignature.RequestSignatureDto{
+		"subscribe",
+		"wrong id to generate wrong body hash",
+		"https://someone.d-velop.cloud",
+	}
+
+	headers := map[string]string{
+		"x-dv-signature-headers":   "x-dv-signature-algorithm,x-dv-signature-headers,x-dv-signature-timestamp",
+		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
+		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
+		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
+		"Content-Type": 			"application/json",
+	}
+
+	payload := &bytes.Buffer{}
+	json.NewEncoder(payload).Encode(dto)
+	body := payload.Bytes()
+	req, _ := http.NewRequest(http.MethodPost, "/myapp/dvelop-cloud-lifecycle-event", bytes.NewReader(body))
+	for key, value := range headers {
+		req.Header.Add(key, value)
+	}
+
+	handlerCalled := false
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		handlerCalled = true
+		t.Log("handler was called")
+	}
+
+	rr := httptest.NewRecorder()
+	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+
+	if status := rr.Code; status != http.StatusForbidden {
+		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusForbidden)
+	}
+	if handlerCalled {
+		t.Fatalf("Handler was called, but should not be called.")
 	}
 }
