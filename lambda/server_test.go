@@ -234,8 +234,8 @@ func TestAdaptor_HandlerSetsHeaderAndCallsWriteHeader_ReturnsHeaderAndStatusCode
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	expected := map[string]string{"X-Error": "502"}
-	if !reflect.DeepEqual(resp.Headers, expected) {
+	expected := map[string][]string{"X-Error": {"502"}}
+	if !reflect.DeepEqual(resp.MultiValueHeaders, expected) {
 		t.Errorf("Serve: should return headers '%v' set by handler but returned headers '%v' ", expected, resp.Headers)
 	}
 	if resp.StatusCode != http.StatusInternalServerError {
@@ -253,8 +253,8 @@ func TestAdaptor_HandlerSetsHeaderWithMultipleValues_ReturnsHeaderWithMultipleVa
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	expected := map[string]string{"Content-Type": "application/json, text/html"}
-	if !reflect.DeepEqual(resp.Headers, expected) {
+	expected := map[string][]string{"Content-Type": {"application/json", "text/html"}}
+	if !reflect.DeepEqual(resp.MultiValueHeaders, expected) {
 		t.Errorf("Serve: should return headers '%v' set by handler but returned headers '%v' ", expected, resp.Headers)
 	}
 	if resp.StatusCode != http.StatusInternalServerError {
@@ -272,8 +272,8 @@ func TestAdaptor_HandlerModifiesHeaderAfterCallingWriteHeader_ReturnsUnmodifiedH
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	expected := map[string]string{"X-Header": "value"}
-	if !reflect.DeepEqual(expected, resp.Headers) {
+	expected := map[string][]string{"X-Header": {"value"}}
+	if !reflect.DeepEqual(expected, resp.MultiValueHeaders) {
 		t.Errorf("Serve: should return headers '%v' set by handler but returned headers '%v' ", expected, resp.Headers)
 	}
 }
@@ -287,8 +287,8 @@ func TestAdaptor_HandlerDoesntSetContentTypeAndCallsWrite_ReturnsDetectedContent
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	expected := map[string]string{"Content-Type": "text/html; charset=utf-8"}
-	if !reflect.DeepEqual(resp.Headers, expected) {
+	expected := map[string][]string{"Content-Type": {"text/html; charset=utf-8"}}
+	if !reflect.DeepEqual(resp.MultiValueHeaders, expected) {
 		t.Errorf("Serve: should return headers '%v' set by handler but returned headers '%v' ", expected, resp.Headers)
 	}
 	if !reflect.DeepEqual(resp.Body, body) {
@@ -308,8 +308,8 @@ func TestAdaptor_HandlerSetsContentTypeAndCallsWrite_ReturnsContentTypeHeaderAnd
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	expected := map[string]string{"Content-Type": "application/vnd+company.category+json"}
-	if !reflect.DeepEqual(resp.Headers, expected) {
+	expected := map[string][]string{"Content-Type": {"application/vnd+company.category+json"}}
+	if !reflect.DeepEqual(resp.MultiValueHeaders, expected) {
 		t.Errorf("Serve: should return headers '%v' set by handler but returned headers '%v' ", expected, resp.Headers)
 	}
 	if !reflect.DeepEqual(resp.Body, `{"Key": "value"}`) {
@@ -330,8 +330,8 @@ func TestAdaptor_HandlerSetsContentTypeAndCallsWriteHeaderAndCallsWrite_ReturnsC
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	expected := map[string]string{"X-Header": "value"}
-	if !reflect.DeepEqual(resp.Headers, expected) {
+	expected := map[string][]string{"X-Header": {"value"}}
+	if !reflect.DeepEqual(resp.MultiValueHeaders, expected) {
 		t.Errorf("Serve: should return headers '%v' set by handler but returned headers '%v' ", expected, resp.Headers)
 	}
 	if !reflect.DeepEqual(resp.Body, "type not acceptable") {
@@ -353,7 +353,7 @@ func TestAdaptor_HandlerModifiesHeaderAfterWriteAndCallsWriteHeader_ReturnsUnmod
 	handler := lambda.AdaptorFunc(spy, nullLog, nullLog)
 	resp, _ := handler(context.Background(), events.APIGatewayProxyRequest{})
 
-	if resp.Headers["X-Header"] != "value" {
+	if resp.MultiValueHeaders["X-Header"][0] != "value" {
 		t.Errorf("Serve: should return unmodified header value '%v' but returned modified header value '%v'", "value", resp.Headers["X-Header"])
 	}
 }
