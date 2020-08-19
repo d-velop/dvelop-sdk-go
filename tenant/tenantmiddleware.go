@@ -39,14 +39,24 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type contextKey string
 
-const systemBaseUriCtxKey = contextKey("systemBaseUri")
-const tenantIdCtxKey = contextKey("tenantId")
-const systemBaseUriHeader = "x-dv-baseuri"
-const tenantIdHeader = "x-dv-tenant-id"
+const (
+	systemBaseUriCtxKey          = contextKey("systemBaseUri")
+	tenantIdCtxKey               = contextKey("tenantId")
+	initiatorSystemBaseUriCtxKey = contextKey("sourceSystemBaseUri")
+	systemBaseUriHeader          = "x-dv-baseuri"
+	tenantIdHeader               = "x-dv-tenant-id"
+	forwardedHeader              = "forwarded"
+	xForwardedHostHeader         = "x-forwarded-host"
+	commaDelimiter               = ","
+	colonDelimiter               = ";"
+	forwardedHostPattern         = "host="
+	uriPrefix                    = "https://"
+)
 
 // Adds systemBaseUri and tenantId to request context.
 // If the headers are not present the given defaultSystemBaseUri and tenant "0" are used.
@@ -97,6 +107,13 @@ func AddToCtx(defaultSystemBaseUri string, signatureSecretKey []byte) func(http.
 				ctx = context.WithValue(ctx, systemBaseUriCtxKey, systemBaseUri)
 			}
 
+			initiatorSystemBaseUri := getInitiatorSystemBaseUri(req)
+			if initiatorSystemBaseUri == "" {
+				initiatorSystemBaseUri = defaultSystemBaseUri
+			}
+			if initiatorSystemBaseUri != "" {
+				ctx = context.WithValue(ctx, initiatorSystemBaseUriCtxKey, initiatorSystemBaseUri)
+			}
 			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
 	}
@@ -107,6 +124,49 @@ func signatureIsValid(message, signature, key []byte) bool {
 	mac.Write(message)
 	expectedMAC := mac.Sum(nil)
 	return hmac.Equal(signature, expectedMAC)
+}
+
+// returns the initial host which initiates current request
+// it is essential in hybrid systems
+func getInitiatorSystemBaseUri(req *http.Request) string {
+	var initiatorSystemBaseUri string
+	forwardedHeaderValue := req.Header.Get(forwardedHeader)
+	xForwardedHostHeaderValue := req.Header.Get(xForwardedHostHeader)
+	systemBaseUri := req.Header.Get(systemBaseUriHeader)
+
+	initiatorSystemBaseUri = getForwardedHeaderFirstHostValueAsUri(forwardedHeaderValue)
+	if initiatorSystemBaseUri == "" {
+		host := getFirstValueOfDelimitedList(xForwardedHostHeaderValue, commaDelimiter)
+		if host != "" {
+			initiatorSystemBaseUri = uriPrefix + host
+		} else {
+			initiatorSystemBaseUri = systemBaseUri
+		}
+	}
+	return initiatorSystemBaseUri
+}
+
+func getForwardedHeaderFirstHostValueAsUri(headerValue string) string {
+	if headerValue != "" {
+		for _, value := range strings.Split(headerValue, colonDelimiter) {
+			if strings.HasPrefix(value, forwardedHostPattern) {
+				hostValue := strings.TrimPrefix(value, forwardedHostPattern)
+				host := getFirstValueOfDelimitedList(hostValue, commaDelimiter)
+				log.Printf("value before trim %s after trim %s and the result host %s", value, hostValue, host)
+				if host != "" {
+					return uriPrefix + host
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func getFirstValueOfDelimitedList(delimitedList string, delimiter string) string {
+	if delimitedList == "" {
+		return delimitedList
+	}
+	return strings.Split(delimitedList, delimiter)[0]
 }
 
 // SystemBaseUriFromCtx reads the systemBaseUri from the context.
@@ -127,6 +187,15 @@ func IdFromCtx(ctx context.Context) (string, error) {
 	return tenantId, nil
 }
 
+// InitiatorSystemBaseUriFromCtx reads the uri of the initial requesting host from the context.
+func InitiatorSystemBaseUriFromCtx(ctx context.Context) (string, error) {
+	initiatorSystemBaseUri, ok := ctx.Value(initiatorSystemBaseUriCtxKey).(string)
+	if !ok {
+		return "", errors.New("no InitiatorSystemBaseUri on context")
+	}
+	return initiatorSystemBaseUri, nil
+}
+
 // SetId returns a new context.Context with the given tenantId
 func SetId(ctx context.Context, tenantId string) context.Context {
 	return context.WithValue(ctx, tenantIdCtxKey, tenantId)
@@ -135,4 +204,9 @@ func SetId(ctx context.Context, tenantId string) context.Context {
 // SetSystemBaseUri returns a new context.Context with the given systemBaseUri
 func SetSystemBaseUri(ctx context.Context, systemBaseUri string) context.Context {
 	return context.WithValue(ctx, systemBaseUriCtxKey, systemBaseUri)
+}
+
+// SetInitiatorSystemBaseUri returns a new context.Context with the given initiatorSystemBaseUri
+func SetInitiatorSystemBaseUri(ctx context.Context, initiatorSystemBaseUri string) context.Context {
+	return context.WithValue(ctx, initiatorSystemBaseUriCtxKey, initiatorSystemBaseUri)
 }
