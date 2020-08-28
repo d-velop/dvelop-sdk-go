@@ -152,7 +152,6 @@ func getForwardedHeaderFirstHostValueAsUri(headerValue string) string {
 			if strings.HasPrefix(value, forwardedHostPattern) {
 				hostValue := strings.TrimPrefix(value, forwardedHostPattern)
 				host := getFirstValueOfDelimitedList(hostValue, commaDelimiter)
-				log.Printf("value before trim %s after trim %s and the result host %s", value, hostValue, host)
 				if host != "" {
 					return uriPrefix + host
 				}
