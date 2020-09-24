@@ -190,12 +190,10 @@ func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, ten
 		return nil, IdpClientError{"user is not allowed to invoke resource.", *resp.Request.URL, resp.StatusCode, string(responseMsg)}
 	case http.StatusNotFound:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("user '%s' doesn't exist. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg)
+		return nil, IdpClientError{fmt.Sprintf("user '%s' does'nt exist.", principalId), *resp.Request.URL, resp.StatusCode, string(responseMsg)}
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg)
+		return nil, IdpClientError{"unexpected error.", *resp.Request.URL, resp.StatusCode, string(responseMsg)}
 	}
 }
 

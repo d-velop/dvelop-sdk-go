@@ -435,3 +435,84 @@ func TestIdpReturnsUnexpectedStatusCode_GetPrincipalById_ReturnsError(t *testing
 		t.Error("expected an error because idp returned unexpected http error")
 	}
 }
+
+func Test_GetPrincipalById_Errors(t *testing.T) {
+	authSessionId := "authSessionId"
+	tenantId := "tenantId"
+	principalId := "principalId"
+
+	tests := []struct {
+		name       string
+		statusCode int
+	}{
+		{"IdpForbiddenError", http.StatusForbidden},
+		{"IdpNotFoundError", http.StatusNotFound},
+		{"IdpInternalServerError", http.StatusInternalServerError},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "error", test.statusCode)
+			}))
+
+			got, err := defaultClient.GetPrincipalById(context.Background(), idpStub.URL, tenantId, authSessionId, principalId)
+
+			if got != nil {
+				t.Error("expected nil principal because idp returned unexpected http error")
+			}
+
+			switch err.(type) {
+			case idpclient.IdpClientError:
+			default:
+				t.Errorf("unexpected error - expected %T, but is %T", idpclient.IdpClientError{}, err)
+			}
+
+			if err.(idpclient.IdpClientError).StatusCode != test.statusCode {
+				t.Errorf("unexpected status code - expected %d, got %d", err.(idpclient.IdpClientError).StatusCode, test.statusCode)
+			}
+		})
+	}
+}
+
+func Test_Validate_Errors(t *testing.T) {
+	authSessionId := "authSessionId"
+	tenantId := "tenantId"
+
+	tests := []struct {
+		name       string
+		statusCode int
+	}{
+		{"IdpUnauthorizedError", http.StatusUnauthorized},
+		{"IdpNotFoundError", http.StatusNotFound},
+		{"IdpInternalServerError", http.StatusInternalServerError},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "error", test.statusCode)
+			}))
+
+			got, err := defaultClient.Validate(context.Background(), idpStub.URL, tenantId, authSessionId)
+
+			if got != nil {
+				t.Error("expected nil principal because idp returned unexpected http error")
+			}
+
+			if test.statusCode == http.StatusUnauthorized {
+				if err != nil {
+					t.Errorf("did not expect error, but got %v", err)
+				}
+			} else {
+				switch err.(type) {
+				case idpclient.IdpClientError:
+				default:
+					t.Errorf("unexpected error - expected %T, but is %T", idpclient.IdpClientError{}, err)
+				}
+
+				if err.(idpclient.IdpClientError).StatusCode != test.statusCode {
+					t.Errorf("unexpected status code - expected %d, got %d", err.(idpclient.IdpClientError).StatusCode, test.statusCode)
+				}
+			}
+		})
+	}
+}
