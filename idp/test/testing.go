@@ -2,6 +2,10 @@ package test
 
 import (
 	"encoding/json"
+
+	"github.com/go-http-utils/headers"
+
+	"fmt"
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"net/http"
 	"net/http/httptest"
@@ -44,8 +48,8 @@ func NewIdpValidateStub(principals map[string]scim.Principal, externalPrincipals
 
 func NewIdpUsersStub(authSessionIdFromAuthorizedCaller string, existingPrincipal scim.Principal) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/identityprovider/scim/users/"+existingPrincipal.Id {
-			authorizationHeader := r.Header.Get("Authorization")
+		if r.URL.Path == fmt.Sprintf("/identityprovider/scim/users/%s", existingPrincipal.Id) {
+			authorizationHeader := r.Header.Get(headers.Authorization)
 			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
 
 			if authToken != authSessionIdFromAuthorizedCaller {

@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/go-http-utils/headers"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
@@ -155,8 +156,12 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 		return nil, nil
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+
+		respBody := ""
+		if len(responseMsg) > 0 {
+			respBody = string(responseMsg[:len(responseMsg)-1])
+		}
+		return nil, IdpClientError{"unexpected error", *resp.Request.URL, resp.StatusCode, respBody}
 	}
 }
 
@@ -166,10 +171,10 @@ The authSessionId is used to authorize the request.
 */
 func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, principalId string) (*scim.Principal, error) {
 	// tenantid not used so far but included to implement a cache without changing the method signature
-	endpoint := "/identityprovider/scim/users/" + principalId
+	endpoint := fmt.Sprintf("/identityprovider/scim/users/%s", principalId)
 	resp, doErr := c.httpGet(ctx, systemBaseUri, authSessionId, endpoint)
 	if doErr != nil {
-		return nil, fmt.Errorf("error calling http GET on '%s' because: %w", endpoint, doErr)
+		return nil, IdpClientError{doErr.Error(), *resp.Request.URL, resp.StatusCode, ""}
 	}
 	defer resp.Body.Close()
 
@@ -182,8 +187,7 @@ func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, ten
 		return &p, nil
 	case http.StatusForbidden:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("user is not allowed to invoke '%s'. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg)
+		return nil, IdpClientError{"user is not allowed to invoke resource.", *resp.Request.URL, resp.StatusCode, string(responseMsg)}
 	case http.StatusNotFound:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
 		return nil, fmt.Errorf("user '%s' doesn't exist. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
@@ -207,7 +211,7 @@ func (c *client) httpGet(ctx context.Context, systemBaseUri string, authSessionI
 	if nRErr != nil {
 		return nil, fmt.Errorf("can't create http request for '%s' because: %v", resourceEndpoint, nRErr)
 	}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, fmt.Sprintf("Bearer %s", authSessionId))
 
 	return c.httpClient.Do(req)
 }
