@@ -139,7 +139,7 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 			return nil, fmt.Errorf("response from Identityprovider '%s' is no valid JSON because: %v", endpoint, err)
 		}
 		var validFor time.Duration = 0
-		cacheControlHeader := resp.Header.Get("Cache-Control")
+		cacheControlHeader := resp.Header.Get(headers.CacheControl)
 		matches := maxAgeRegex.FindStringSubmatch(cacheControlHeader)
 		if matches != nil {
 			d, err := time.ParseDuration(matches[1] + "s")

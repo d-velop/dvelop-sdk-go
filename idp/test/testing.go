@@ -17,11 +17,11 @@ var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
 func NewIdpValidateStub(principals map[string]scim.Principal, externalPrincipals map[string]scim.Principal) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/identityprovider/validate" {
-			authorizationHeader := r.Header.Get("Authorization")
+			authorizationHeader := r.Header.Get(headers.Authorization)
 			authToken := bearerTokenRegex.FindStringSubmatch(authorizationHeader)[1]
 
-			w.Header().Set("Cache-Control", "max-age=1800, private")
-			w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+			w.Header().Set(headers.CacheControl, "max-age=1800, private")
+			w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 
 			if r.URL.RawQuery == "allowExternalValidation=true" {
 				if principal, exist := principals[authToken]; exist {

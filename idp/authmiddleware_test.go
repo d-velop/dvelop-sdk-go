@@ -12,10 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-http-utils/headers"
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/d-velop/dvelop-sdk-go/idp"
 	"github.com/d-velop/dvelop-sdk-go/idp/idpclient"
 	"github.com/d-velop/dvelop-sdk-go/idp/test"
-	"github.com/google/go-cmp/cmp"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
@@ -50,28 +52,28 @@ func TestNoAuthSessionId(t *testing.T) {
 	}{
 		// read function name and testCase name as one sentence. e.g. TestNoAuthSessionIdAndHeadRequestAndHtmlAccepted_Middleware_RedirectsToIdp
 		"AndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
-			method: http.MethodGet, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodGet, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 		"AndHeadRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
-			method: http.MethodHead, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodHead, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 		"ButBasicAuthorizationAndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
-			method: http.MethodGet, headers: map[string]string{"Authorization": "Basic adadbk", "Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodGet, headers: map[string]string{headers.Authorization: "Basic adadbk", headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 		"ButOtherCookieAndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
-			method: http.MethodGet, cookie: &http.Cookie{Name: "AnyCookie", Value: "adadbk"}, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodGet, cookie: &http.Cookie{Name: "AnyCookie", Value: "adadbk"}, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 		"AndPostRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodPost, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodPost, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndPutRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodPut, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodPut, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndDeleteRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodDelete, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodDelete, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndPatchRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodPatch, headers: map[string]string{"Accept": "text/html"}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodPatch, headers: map[string]string{headers.Accept: "text/html"}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 	}
 
@@ -122,29 +124,29 @@ func TestInvalidAuthSessionId(t *testing.T) {
 	}{
 		// read function name and testCase name as one sentence. e.g. TestNoAuthSessionIdAndHeadRequestAndHtmlAccepted_Middleware_RedirectsToIdp
 		"AndGetRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
-			method: http.MethodGet, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodGet, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 		"AndHeadRequestAndHtmlAccepted_Middleware_RedirectsToIdp": {
-			method: http.MethodHead, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodHead, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 		"AndGetRequestAndHtmlNotAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodGet, headers: map[string]string{"Accept": "application/json", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodGet, headers: map[string]string{headers.Accept: "application/json", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndPostRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodPost, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodPost, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndPutRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodPut, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodPut, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndDeleteRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodDelete, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodDelete, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndPatchRequestAndHtmlAccepted_Middleware_ReturnsStatus401AndWWW-AuthenticateBearerHeader": {
-			method: http.MethodPatch, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodPatch, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, url: "/a/b?q1=x&q2=1",
 			want: result{StatusCode: http.StatusUnauthorized, Headers: http.Header{"Www-Authenticate": {"Bearer"}}}},
 		"AndGetRequestAndHtmlAcceptedAndExternalValidation_Middleware_RedirectsToIdp": {
-			method: http.MethodGet, headers: map[string]string{"Accept": "text/html", "Authorization": "Bearer " + invalidToken}, allowExternalValidation: true, url: "/a/b?q1=x&q2=1",
-			want: result{StatusCode: http.StatusFound, Headers: http.Header{"Location": {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
+			method: http.MethodGet, headers: map[string]string{headers.Accept: "text/html", headers.Authorization: "Bearer " + invalidToken}, allowExternalValidation: true, url: "/a/b?q1=x&q2=1",
+			want: result{StatusCode: http.StatusFound, Headers: http.Header{headers.Location: {"/identityprovider/login?redirect=" + url.QueryEscape("/a/b?q1=x&q2=1")}}}},
 	}
 
 	for name, tc := range testcases {
@@ -194,16 +196,16 @@ func TestValidAuthSessionId(t *testing.T) {
 	}{
 		// read function name and testCase name as one sentence. e.g. TestValidAuthSessionIdAsBearerTokenAndGetRequest_Middleware_PopulatesContextWithPrincipalAndAuthSession
 		"AsBearerToken_Middleware_PopulatesContextWithPrincipalAndAuthSession": {
-			method: http.MethodGet, headers: map[string]string{"Authorization": "Bearer " + validAuthSessionId}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodGet, headers: map[string]string{headers.Authorization: "Bearer " + validAuthSessionId}, url: "/a/b?q1=x&q2=1",
 			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
 		"AsLowerCaseBearerToken_Middleware_PopulatesContextWithPrincipalAndAuthSession": {
-			method: http.MethodGet, headers: map[string]string{"Authorization": "bearer " + validAuthSessionId}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodGet, headers: map[string]string{headers.Authorization: "bearer " + validAuthSessionId}, url: "/a/b?q1=x&q2=1",
 			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
 		"AsCookie_Middleware_PopulatesContextWithPrincipalAndAuthSession": {
 			method: http.MethodGet, cookie: &http.Cookie{Name: "AuthSessionId", Value: url.QueryEscape(validAuthSessionId)}, url: "/a/b?q1=x&q2=1",
 			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
 		"AsBearerTokenAndAsCookie_Middleware_PopulatesContextWithPrincipalAndAuthSessionFromBearerToken": {
-			method: http.MethodGet, headers: map[string]string{"Authorization": "Bearer " + validAuthSessionId}, cookie: &http.Cookie{Name: "AuthSessionId", Value: url.QueryEscape(secondValidAuthSessionId)}, url: "/a/b?q1=x&q2=1",
+			method: http.MethodGet, headers: map[string]string{headers.Authorization: "Bearer " + validAuthSessionId}, cookie: &http.Cookie{Name: "AuthSessionId", Value: url.QueryEscape(secondValidAuthSessionId)}, url: "/a/b?q1=x&q2=1",
 			want: result{Principal: principals[validAuthSessionId], AuthSessionId: validAuthSessionId}},
 	}
 
@@ -267,7 +269,7 @@ func TestGetSystemBaseUriFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Authorization", "Bearer "+validAuthSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+validAuthSessionId)
 	handlerSpy := handlerSpy{}
 	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
@@ -288,7 +290,7 @@ func TestGetTenantIdFromCtxReturnsError_ReturnsStatus500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Authorization", "Bearer "+validAuthSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+validAuthSessionId)
 	handlerSpy := handlerSpy{}
 	idpStub := test.NewIdpValidateStub(principals, externalPrincipals)
 	defer idpStub.Close()
@@ -310,7 +312,7 @@ func TestIdPReturnsStatus500_ReturnsStatus500(t *testing.T) {
 		t.Fatal(err)
 	}
 	const authSessionId = "gXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusInternalServerError)
@@ -334,11 +336,11 @@ func TestIdPReturnsMalformedJson_ReturnsStatus500(t *testing.T) {
 		t.Fatal(err)
 	}
 	const authSessionId = "hXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "max-age=1800, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1800, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_, _ = fmt.Fprint(w, `{"wrong":"json}`)
 	}))
 	defer idpStub.Close()
@@ -361,13 +363,13 @@ func TestUserIsCachedAndCacheEntryIsNotExpired_ReturnsCachedEntry(t *testing.T) 
 	}
 	const authSessionId = "jXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e5"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Cache-Control", "max-age=1800, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1800, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -392,13 +394,13 @@ func TestUserIsCachedButCacheEntryIsExpired_CallsIdp(t *testing.T) {
 	}
 	const authSessionId = "kXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e6"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Cache-Control", "max-age=1, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -424,7 +426,7 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 		t.Fatal(err)
 	}
 	principalT1 := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e7"}
-	reqTenant1.Header.Set("Authorization", "Bearer "+authSessionId)
+	reqTenant1.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	idpStub1 := test.NewIdpValidateStub(map[string]scim.Principal{authSessionId: principalT1}, nil)
 	defer idpStub1.Close()
 	handlerSpy1 := handlerSpy{}
@@ -439,7 +441,7 @@ func TestUserIsCachedForDifferentTenant_CallsIdp(t *testing.T) {
 		t.Fatal(err)
 	}
 	principalT2 := scim.Principal{Id: "0bbbf1b6-017a-449a-ad5f-9723d28223e7"}
-	reqTenant2.Header.Set("Authorization", "Bearer "+authSessionId)
+	reqTenant2.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	idpStub2 := test.NewIdpValidateStub(map[string]scim.Principal{authSessionId: principalT2}, nil)
 	defer idpStub2.Close()
 	handlerSpy2 := handlerSpy{}
@@ -456,7 +458,7 @@ func TestRequestAsExternalUserAndExternalUserValidationIsNotAllowed_ReturnsStatu
 		t.Fatal(err)
 	}
 	const authSessionId = "hXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
 	idpStub := test.NewIdpValidateStub(nil, map[string]scim.Principal{authSessionId: {Emails: []scim.UserValue{{"info@d-velop.de"}}, Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}}}})
 	defer idpStub.Close()
@@ -478,7 +480,7 @@ func TestRequestAsExternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	}
 	const authSessionId = "1XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Emails: []scim.UserValue{{"info@d-velop.de"}}, Groups: []scim.UserGroup{{Value: "3E093BE5-CCCE-435D-99F8-544656B98681"}}}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := new(handlerSpy)
 	idpStub := test.NewIdpValidateStub(nil, map[string]scim.Principal{authSessionId: principal})
 	defer idpStub.Close()
@@ -500,7 +502,7 @@ func TestRequestAsInternalUserAndExternalValidationIsAllowed_PopulatesContextWit
 	}
 	const authSessionId = "2XGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Id: "7bbbf1b6-017a-449a-ad5f-9723d28223e1"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := new(handlerSpy)
 	idpStub := test.NewIdpValidateStub(map[string]scim.Principal{authSessionId: principal}, nil)
 	defer idpStub.Close()
@@ -522,12 +524,12 @@ func TestIdpSendsNoCacheHeader_CallsIdp(t *testing.T) {
 	}
 	const authSessionId = "mXGxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	principal := scim.Principal{Id: "9bbbf1b6-017a-449a-ad5f-9723d28223e7"}
-	req.Header.Set("Authorization", "Bearer "+authSessionId)
+	req.Header.Set(headers.Authorization, "Bearer "+authSessionId)
 	handlerSpy := handlerSpy{}
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -581,7 +583,7 @@ func TestNoAuthSessionIdAndGetRequestAndAcceptHeaderIs(t *testing.T) {
 				t.Fatal(err)
 			}
 			if testCase.header != "" {
-				req.Header.Add("accept", testCase.header)
+				req.Header.Add(headers.Accept, testCase.header)
 			}
 
 			responseSpy := responseSpy{httptest.NewRecorder()}
@@ -598,7 +600,7 @@ func TestNoAuthSessionIdAndGetRequestAndAcceptHeaderIs(t *testing.T) {
 					t.Error(err)
 				}
 
-				if err := responseSpy.assertHeadersAre(map[string]string{"Location": "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
+				if err := responseSpy.assertHeadersAre(map[string]string{headers.Location: "/identityprovider/login?redirect=%2Fmyresource%2Fsubresource%3Fquery1%3Dabc%26query2%3D123"}); err != nil {
 					t.Error(err)
 				}
 			} else {

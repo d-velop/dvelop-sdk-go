@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-http-utils/headers"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/d-velop/dvelop-sdk-go/idp/idpclient"
@@ -116,8 +117,8 @@ func TestIdpReturnsStatus500_Validate_ReturnsErrorAndNilPrincipal(t *testing.T) 
 
 func TestIdpReturnsMalformedJson_Validate_ReturnsErrorAndNilPrincipal(t *testing.T) {
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "max-age=1800, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1800, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_, _ = fmt.Fprint(w, `{"wrong":"json}`)
 	}))
 	defer idpStub.Close()
@@ -138,8 +139,8 @@ func TestPrincipalIsCachedAndCacheEntryIsNotExpired_Validate_ReturnsCachedEntry(
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Cache-Control", "max-age=1800, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1800, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -168,8 +169,8 @@ func TestPrincipalIsCachedButCacheEntryIsExpired_Validate_CallsIdp(t *testing.T)
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Cache-Control", "max-age=1, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -198,8 +199,8 @@ func TestPrincipalIsCachedForDifferentTenant_Validate_CallsIdp(t *testing.T) {
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Cache-Control", "max-age=1800, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1800, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -228,7 +229,7 @@ func TestIdpSentsNoCacheHeader_Validate_CallsIdp(t *testing.T) {
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -256,8 +257,8 @@ func TestIdpSentsMaxAgeZero_Validate_CallsIdp(t *testing.T) {
 	idpCalled := 0
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		idpCalled++
-		w.Header().Set("Cache-Control", "max-age=0, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=0, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))
@@ -284,8 +285,8 @@ func TestContextWithTimeoutAndRequestTimedOut_Validate_ReturnsTimeout(t *testing
 	const authSessionId = "88GxJeb0q+/fS8biFi8FE7TovJPPEPyzlDxT6bh5p5pHA/x7CEi1w9egVhEMz8IWhrtvJRFnkSqJnLr61cOKf/i5eWuu7Duh+OTtTjMOt9w=&Bnh4NNU90wH_OVlgbzbdZOEu1aSuPlbUctiCdYTonZ3Ap_Zd3bVL79I-dPdHf4OOgO8NKEdqyLsqc8RhAOreXgJqXuqsreeI"
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(20 * time.Millisecond)
-		w.Header().Set("Cache-Control", "max-age=1600, private")
-		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.Header().Set(headers.CacheControl, "max-age=1600, private")
+		w.Header().Set(headers.ContentType, "application/hal+json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(principal)
 		return
 	}))

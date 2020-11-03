@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-http-utils/headers"
+
 	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
@@ -71,11 +73,11 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				return
 			}
 			if authSessionId == "" {
-				if isTextHtmlAccepted(req.Header.Get("Accept")) && req.Method == http.MethodGet || req.Method == http.MethodHead {
+				if isTextHtmlAccepted(req.Header.Get(headers.Accept)) && req.Method == http.MethodGet || req.Method == http.MethodHead {
 					redirectToIdpLogin(rw, req)
 				} else {
 					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
+					rw.Header().Set("Www-Authenticate", "Bearer")
 				}
 				return
 			}
@@ -98,11 +100,11 @@ func Authenticate(validator Validator, getSystemBaseUriFromCtx, getTenantIdFromC
 				return
 			}
 			if principal == nil {
-				if isTextHtmlAccepted(req.Header.Get("Accept")) && req.Method == http.MethodGet || req.Method == http.MethodHead {
+				if isTextHtmlAccepted(req.Header.Get(headers.Accept)) && req.Method == http.MethodGet || req.Method == http.MethodHead {
 					redirectToIdpLogin(rw, req)
 				} else {
 					rw.WriteHeader(http.StatusUnauthorized)
-					rw.Header().Set("WWW-Authenticate", "Bearer")
+					rw.Header().Set("Www-Authenticate", "Bearer")
 				}
 				return
 			}
@@ -131,7 +133,7 @@ type Validator interface {
 
 func redirectToIdpLogin(rw http.ResponseWriter, req *http.Request) {
 	const redirectionBase = "/identityprovider/login?redirect="
-	rw.Header().Set("Location", redirectionBase+url.QueryEscape(req.URL.String()))
+	rw.Header().Set(headers.Location, redirectionBase+url.QueryEscape(req.URL.String()))
 	rw.WriteHeader(http.StatusFound)
 }
 
@@ -166,7 +168,7 @@ func isTextHtmlAccepted(header string) bool {
 var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$") // cf. https://regex101.com/
 
 func authSessionIdFromRequest(ctx context.Context, req *http.Request, logInfo func(ctx context.Context, message string)) (string, error) {
-	authorizationHeader := req.Header.Get("Authorization")
+	authorizationHeader := req.Header.Get(headers.Authorization)
 	matches := bearerTokenRegex.FindStringSubmatch(authorizationHeader)
 	if matches != nil {
 		return matches[1], nil
