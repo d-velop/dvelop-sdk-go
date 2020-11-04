@@ -106,6 +106,14 @@ Use sensible defaults for the creation of API Clients so that the default use ca
 provide [functional options](https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis)
 to change these defaults. 
 
+## External packages
+Don't add dependencies to packages outside the [go standard library](https://golang.org/pkg/#stdlib) unless they
+- add significant value **and** 
+- are stable and well maintained **and** 
+- have a compatible license
+You have to consider, that you force every consumer of the SDK to include this dependency. 
+So fewer dependencies are better.
+
 ## Commit message
 
 Please use the following template for commit messages which is derived from 
