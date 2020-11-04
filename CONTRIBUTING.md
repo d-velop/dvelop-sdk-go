@@ -111,6 +111,7 @@ Don't add dependencies to packages outside the [go standard library](https://gol
 - add significant value **and** 
 - are stable and well maintained **and** 
 - have a compatible license
+
 You have to consider, that you force every consumer of the SDK to include this dependency. 
 So fewer dependencies are better.
 
