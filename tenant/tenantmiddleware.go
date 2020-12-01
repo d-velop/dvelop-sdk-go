@@ -37,6 +37,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -62,6 +63,15 @@ const (
 // If the headers are not present the given defaultSystemBaseUri and tenant "0" are used.
 // The signatureSecretKey is specific for each App and is provided by the registration process for d.velop cloud.
 func AddToCtx(defaultSystemBaseUri string, signatureSecretKey []byte) func(http.Handler) http.Handler {
+
+	errorLogger := func(ctx context.Context, message string) {
+		log.Println("error", message)
+	}
+
+	return AddToCtxWithLogger(defaultSystemBaseUri, signatureSecretKey, errorLogger)
+}
+
+func AddToCtxWithLogger(defaultSystemBaseUri string, signatureSecretKey []byte, logger func(ctx context.Context, message string)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
@@ -71,19 +81,19 @@ func AddToCtx(defaultSystemBaseUri string, signatureSecretKey []byte) func(http.
 
 			if systemBaseUri != "" || tenantId != "" {
 				if signatureSecretKey == nil {
-					log.Printf("error validating signature for headers '%v' and '%v' because secret signature key has not been configured", systemBaseUriHeader, tenantIdHeader)
+					logger(req.Context(), fmt.Sprintf("validating signature for headers '%v' and '%v' because secret signature key has not been configured", systemBaseUriHeader, tenantIdHeader))
 					http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 					return
 				}
 				base64Signature := req.Header.Get("x-dv-sig-1")
 				signature, err := base64.StdEncoding.DecodeString(base64Signature)
 				if err != nil {
-					log.Printf("error decoding signature '%v' as base 64 data because: %v", base64Signature, err)
+					logger(req.Context(), fmt.Sprintf("decoding signature '%v' as base 64 data because: %v", base64Signature, err))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 					return
 				}
 				if !signatureIsValid([]byte(systemBaseUri+tenantId), []byte(signature), signatureSecretKey) {
-					log.Printf("error signature '%v' is not valid for SystemBaseUri '%v' and TenantId '%v'", signature, systemBaseUri, tenantId)
+					logger(req.Context(), fmt.Sprintf("signature '%v' is not valid for SystemBaseUri '%v' and TenantId '%v'", signature, systemBaseUri, tenantId))
 					http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 					return
 				}

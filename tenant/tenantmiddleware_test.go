@@ -548,6 +548,35 @@ func TestInitiatorSystemBaseUriOnContext_SetInitiatorSystemBaseUri_ReturnsContex
 	}
 }
 
+func TestAddToCtxWithLogger_TakesLogger_UsesGivenLogger(t *testing.T) {
+	req, err := http.NewRequest("GET", "/myresource/sub", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const systemBaseUriFromHeader = "https://sample.example.com"
+	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
+	const tenantIdFromHeader = "a12be5"
+	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
+	req.Header.Set(signatureHeader, "abc+(9-!")
+	handlerSpy := handlerSpy{}
+	responseSpy := responseSpy{httptest.NewRecorder()}
+
+	logSpy := loggerSpy{}
+
+	tenant.AddToCtxWithLogger("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
+
+	if err := responseSpy.assertStatusCodeIs(http.StatusForbidden); err != nil {
+		t.Error(err)
+	}
+	if handlerSpy.hasBeenCalled {
+		t.Error("inner handler should not have been called")
+	}
+
+	if !logSpy.hasBeenCalled {
+		t.Error("logSpy should have been called")
+	}
+}
+
 var signatureKey = []byte{166, 219, 144, 209, 189, 1, 178, 73, 139, 47, 21, 236, 142, 56, 71, 245, 43, 188, 163, 52, 239, 102, 94, 153, 255, 159, 199, 149, 163, 145, 161, 24}
 
 func base64Signature(message string, sigKey []byte) string {
@@ -624,4 +653,12 @@ func (spy *responseSpy) assertStatusCodeIs(expectedStatusCode int) error {
 		return fmt.Errorf("handler returned wrong status code: got %v want %v", status, expectedStatusCode)
 	}
 	return nil
+}
+
+type loggerSpy struct {
+	hasBeenCalled bool
+}
+
+func (spy *loggerSpy) logError( ctx context.Context, message string){
+	spy.hasBeenCalled = true
 }
