@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/d-velop/dvelop-sdk-go/tenant"
@@ -34,7 +35,8 @@ func TestBaseUriHeaderAndEmptyDefaultBaseUri_UsesHeader(t *testing.T) {
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	logSpy := loggerSpy{}
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -51,8 +53,9 @@ func TestNoBaseUriHeaderAndDefaultBaseUri_UsesDefaultBaseUri(t *testing.T) {
 	}
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -72,8 +75,9 @@ func TestBaseUriHeaderAndDefaultBaseUri_UsesHeader(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -89,8 +93,9 @@ func TestNoBaseUriHeaderAndEmptyDefaultBaseUri_DoesntAddBaseUriToContext(t *test
 		t.Fatal(err)
 	}
 	handlerSpy := handlerSpy{}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(httptest.NewRecorder(), req)
 
 	if err := handlerSpy.assertErrorReadingSystemBaseUri(); err != nil {
 		t.Error(err)
@@ -107,8 +112,9 @@ func TestTenantIdHeader_UsesHeader(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(tenantIdFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -125,8 +131,9 @@ func TestNoTenantIdHeader_UsesTenantIdZero(t *testing.T) {
 	}
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -147,8 +154,9 @@ func TestInitiatorSystemBaseUriHeader_UsesForwardedHeader(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(forwardedHeaderValue, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -169,8 +177,9 @@ func TestInitiatorSystemBaseUriHeader_UsesForwardedHeaderMultipleHosts(t *testin
 	req.Header.Set(signatureHeader, base64Signature(forwardedHeaderValue, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -190,8 +199,9 @@ func TestInitiatorSystemBaseUriHeader_UsesXForwardedHeader(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(xForwardedHostValue, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -212,8 +222,9 @@ func TestInitiatorSystemBaseUriHeader_UsesXForwardedHeaderMultipleHosts(t *testi
 	req.Header.Set(signatureHeader, base64Signature(xForwardedHostMultiValue, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -232,8 +243,9 @@ func TestInitiatorSystemBaseUriHeader_EmptyForwardedHeadersNoSystemBaseUri(t *te
 	req.Header.Set(signatureHeader, base64Signature("", signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -253,8 +265,9 @@ func TestInitiatorSystemBaseUriHeader_EmptyForwardedHeadersWithSystemBaseUri(t *
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUri, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -273,8 +286,9 @@ func TestInitiatorSystemBaseUriHeader_EmptyForwardedHeadersWithDefaultSystemBase
 
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -296,8 +310,9 @@ func TestTenantIdHeaderAndBaseUriHeader_UsesHeaders(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader+tenantIdFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -323,8 +338,9 @@ func TestTenantIdHeaderAndNoBaseUriHeader_UsesTenantIdHeaderAndDefaultSystemBase
 	req.Header.Set(signatureHeader, base64Signature(tenantIdFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -347,8 +363,9 @@ func TestNoHeadersButDefaultSystemBaseUri_UsesDefaultBaseUriAndTenantIdZero(t *t
 	}
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -371,8 +388,9 @@ func TestNoHeadersButDefaultSystemBaseUriAndNoSignatureSecretKey_UsesDefaultBase
 	}
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx(defaultSystemBaseUri, nil)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx(defaultSystemBaseUri, nil, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusOK); err != nil {
 		t.Error(err)
@@ -400,14 +418,19 @@ func TestWrongDataSignedWithValidSignatureKey_Returns403(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature("wrong data", signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusForbidden); err != nil {
 		t.Error(err)
 	}
 	if handlerSpy.hasBeenCalled {
 		t.Error("inner handler should not have been called")
+	}
+
+	if err := logSpy.assertLogContains("signature"); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -423,14 +446,19 @@ func TestNoneBase64Signature_Returns403(t *testing.T) {
 	req.Header.Set(signatureHeader, "abc+(9-!")
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusForbidden); err != nil {
 		t.Error(err)
 	}
 	if handlerSpy.hasBeenCalled {
 		t.Error("inner handler should not have been called")
+	}
+
+	if err := logSpy.assertLogContains("illegal base64"); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -447,14 +475,19 @@ func TestWrongSignatureKey_Returns403(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader+tenantIdFromHeader, wrongSignatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusForbidden); err != nil {
 		t.Error(err)
 	}
 	if handlerSpy.hasBeenCalled {
 		t.Error("inner handler should not have been called")
+	}
+
+	if err := logSpy.assertLogContains("signature"); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -469,14 +502,19 @@ func TestHeadersWithoutSignature_Returns403(t *testing.T) {
 	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", signatureKey)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusForbidden); err != nil {
 		t.Error(err)
 	}
 	if handlerSpy.hasBeenCalled {
 		t.Error("inner handler should not have been called")
+	}
+
+	if err := logSpy.assertLogContains("signature"); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -492,14 +530,19 @@ func TestHeadersAndNoSignatureSecretKey_Returns500(t *testing.T) {
 	req.Header.Set(signatureHeader, base64Signature(systemBaseUriFromHeader+tenantIdFromHeader, signatureKey))
 	handlerSpy := handlerSpy{}
 	responseSpy := responseSpy{httptest.NewRecorder()}
+	logSpy := loggerSpy{}
 
-	tenant.AddToCtx("", nil)(&handlerSpy).ServeHTTP(responseSpy, req)
+	tenant.AddToCtx("", nil, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
 
 	if err := responseSpy.assertStatusCodeIs(http.StatusInternalServerError); err != nil {
 		t.Error(err)
 	}
 	if handlerSpy.hasBeenCalled {
 		t.Error("inner handler should not have been called")
+	}
+
+	if err := logSpy.assertLogContains("secret"); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -545,35 +588,6 @@ func TestInitiatorSystemBaseUriOnContext_SetInitiatorSystemBaseUri_ReturnsContex
 	ctx = tenant.SetInitiatorSystemBaseUri(context.Background(), "https://new.example.com")
 	if u, _ := tenant.InitiatorSystemBaseUriFromCtx(ctx); u != "https://new.example.com" {
 		t.Errorf("got wrong initiatorSystemBaseUri from context: got %v want %v", u, "https://new.example.com")
-	}
-}
-
-func TestAddToCtxWithLogger_TakesLogger_UsesGivenLogger(t *testing.T) {
-	req, err := http.NewRequest("GET", "/myresource/sub", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const systemBaseUriFromHeader = "https://sample.example.com"
-	req.Header.Set(systemBaseUriHeader, systemBaseUriFromHeader)
-	const tenantIdFromHeader = "a12be5"
-	req.Header.Set(tenantIdHeader, tenantIdFromHeader)
-	req.Header.Set(signatureHeader, "abc+(9-!")
-	handlerSpy := handlerSpy{}
-	responseSpy := responseSpy{httptest.NewRecorder()}
-
-	logSpy := loggerSpy{}
-
-	tenant.AddToCtxWithLogger("", signatureKey, logSpy.logError)(&handlerSpy).ServeHTTP(responseSpy, req)
-
-	if err := responseSpy.assertStatusCodeIs(http.StatusForbidden); err != nil {
-		t.Error(err)
-	}
-	if handlerSpy.hasBeenCalled {
-		t.Error("inner handler should not have been called")
-	}
-
-	if !logSpy.hasBeenCalled {
-		t.Error("logSpy should have been called")
 	}
 }
 
@@ -657,8 +671,21 @@ func (spy *responseSpy) assertStatusCodeIs(expectedStatusCode int) error {
 
 type loggerSpy struct {
 	hasBeenCalled bool
+	lastMessage   string
 }
 
-func (spy *loggerSpy) logError( ctx context.Context, message string){
+func (spy *loggerSpy) logError(ctx context.Context, message string) {
 	spy.hasBeenCalled = true
+	spy.lastMessage = message
+	fmt.Println(message)
+}
+
+func (spy *loggerSpy) assertLogContains(term string) error {
+	if !spy.hasBeenCalled {
+		return fmt.Errorf("log should have been written")
+	}
+	if !strings.Contains(spy.lastMessage, term) {
+		return fmt.Errorf("expected log to contain the term '%v'", term)
+	}
+	return nil
 }
