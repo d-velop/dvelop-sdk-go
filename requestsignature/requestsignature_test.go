@@ -2,13 +2,16 @@ package requestsignature_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/d-velop/dvelop-sdk-go/requestsignature"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/d-velop/dvelop-sdk-go/requestsignature"
 )
 
 const timestampHeader = "x-dv-signature-timestamp"
@@ -18,17 +21,24 @@ const authorizationHeader = "authorization"
 
 const algorithm = "DV1-HMAC-SHA256"
 
+func mockLogInfo(ctx context.Context, msg string) {
+	log.Printf("INFO: %v", msg)
+}
+func mockLogError(ctx context.Context, msg string) {
+	log.Printf("ERROR: %v", msg)
+}
+
 func TestRequestSigner_ValidateSignedRequest_HappyPath_Working(t *testing.T) {
 	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -39,7 +49,7 @@ func TestRequestSigner_ValidateSignedRequest_HappyPath_Working(t *testing.T) {
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -50,7 +60,7 @@ func TestRequestSigner_ValidateSignedRequest_HappyPath_Working(t *testing.T) {
 		req.Header.Add(key, value)
 	}
 
-	validator := requestsignature.NewRequestSigner(appSecret,now)
+	validator := requestsignature.NewRequestSigner(appSecret, now, mockLogInfo)
 	err = validator.ValidateSignedRequest(req)
 	if err != nil {
 		t.Errorf("got error %v but no error expected", err)
@@ -58,17 +68,17 @@ func TestRequestSigner_ValidateSignedRequest_HappyPath_Working(t *testing.T) {
 }
 
 func TestRequestSigner_ValidateSignedRequest_AuthorationHeaderInvalid_ReturnError(t *testing.T) {
-	wantErrorMessage := "wrong authorization header. Got 12783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104d want 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c"
+	wantErrorMessage := "wrong signature in authorization header. Got 12783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104d want 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c"
 	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -79,7 +89,7 @@ func TestRequestSigner_ValidateSignedRequest_AuthorationHeaderInvalid_ReturnErro
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 12783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104d",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -90,10 +100,10 @@ func TestRequestSigner_ValidateSignedRequest_AuthorationHeaderInvalid_ReturnErro
 		req.Header.Add(key, value)
 	}
 
-	validator := requestsignature.NewRequestSigner(appSecret,now)
+	validator := requestsignature.NewRequestSigner(appSecret, now, mockLogInfo)
 	err = validator.ValidateSignedRequest(req)
 	if err != nil {
-		if err.Error()!=wantErrorMessage {
+		if err.Error() != wantErrorMessage {
 			t.Errorf("wrong error returned: got %v want %v", err, wantErrorMessage)
 		}
 	} else {
@@ -102,17 +112,17 @@ func TestRequestSigner_ValidateSignedRequest_AuthorationHeaderInvalid_ReturnErro
 }
 
 func TestRequestSigner_ValidateSignedRequest_WithWrongDto_ReturnError(t *testing.T) {
-	wantErrorMessage := "wrong authorization header. Got 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c want daba3a1deb11b646540bcb42161ea0003cf6ca6c1c3282d83e8c80e91cfcd9f9"
+	wantErrorMessage := "wrong signature in authorization header. Got 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c want daba3a1deb11b646540bcb42161ea0003cf6ca6c1c3282d83e8c80e91cfcd9f9"
 	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://xyz.d-velop.cloud",
@@ -123,7 +133,7 @@ func TestRequestSigner_ValidateSignedRequest_WithWrongDto_ReturnError(t *testing
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -134,11 +144,11 @@ func TestRequestSigner_ValidateSignedRequest_WithWrongDto_ReturnError(t *testing
 		req.Header.Add(key, value)
 	}
 
-	validator := requestsignature.NewRequestSigner(appSecret,now)
+	validator := requestsignature.NewRequestSigner(appSecret, now, mockLogInfo)
 	err = validator.ValidateSignedRequest(req)
 	if err != nil {
-		if err.Error()!=wantErrorMessage {
-			t.Errorf("wrong error returned: got %v want %v", err, wantErrorMessage)
+		if err.Error() != wantErrorMessage {
+			t.Errorf("wrong error returned: got '%v' want '%v'", err, wantErrorMessage)
 		}
 	} else {
 		t.Errorf("no error returned, but want error %v", wantErrorMessage)
@@ -152,11 +162,11 @@ func TestRequestSigner_ValidateSignedRequest_RequestTimeouted_ReturnError(t *tes
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,9,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 9, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -167,7 +177,7 @@ func TestRequestSigner_ValidateSignedRequest_RequestTimeouted_ReturnError(t *tes
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -178,10 +188,10 @@ func TestRequestSigner_ValidateSignedRequest_RequestTimeouted_ReturnError(t *tes
 		req.Header.Add(key, value)
 	}
 
-	validator := requestsignature.NewRequestSigner(appSecret,now)
+	validator := requestsignature.NewRequestSigner(appSecret, now, mockLogInfo)
 	err = validator.ValidateSignedRequest(req)
 	if err != nil {
-		if err.Error()!=wantErrorMessage {
+		if err.Error() != wantErrorMessage {
 			t.Errorf("wrong error returned: got %v want %v", err, wantErrorMessage)
 		}
 	} else {
@@ -195,11 +205,11 @@ func TestHandleSignMiddleware_HappyPath_Working(t *testing.T) {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
 
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -210,7 +220,7 @@ func TestHandleSignMiddleware_HappyPath_Working(t *testing.T) {
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -228,7 +238,7 @@ func TestHandleSignMiddleware_HappyPath_Working(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+	requestsignature.HandleCloudSignatureMiddleware(appSecret, now, mockLogInfo, mockLogError)(http.HandlerFunc(handler)).ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusOK)
@@ -239,11 +249,11 @@ func TestHandleSignMiddleware_HappyPath_Working(t *testing.T) {
 }
 
 func TestHandleSignMiddleware_AppSecretMissing_Return500InternalServerError(t *testing.T) {
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -254,7 +264,7 @@ func TestHandleSignMiddleware_AppSecretMissing_Return500InternalServerError(t *t
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -272,7 +282,7 @@ func TestHandleSignMiddleware_AppSecretMissing_Return500InternalServerError(t *t
 	}
 
 	rr := httptest.NewRecorder()
-	requestsignature.HandleSignMiddleware(nil,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+	requestsignature.HandleCloudSignatureMiddleware(nil, now, mockLogInfo, mockLogError)(http.HandlerFunc(handler)).ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusInternalServerError)
@@ -287,11 +297,11 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByWrongMethod_Return405MethodNo
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -302,7 +312,7 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByWrongMethod_Return405MethodNo
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -320,7 +330,7 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByWrongMethod_Return405MethodNo
 	}
 
 	rr := httptest.NewRecorder()
-	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+	requestsignature.HandleCloudSignatureMiddleware(appSecret, now, mockLogInfo, mockLogError)(http.HandlerFunc(handler)).ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusMethodNotAllowed {
 		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusMethodNotAllowed)
@@ -335,11 +345,11 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByPath_Return400BadRequest(t *t
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -350,7 +360,7 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByPath_Return400BadRequest(t *t
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -368,7 +378,7 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByPath_Return400BadRequest(t *t
 	}
 
 	rr := httptest.NewRecorder()
-	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+	requestsignature.HandleCloudSignatureMiddleware(appSecret, now, mockLogInfo, mockLogError)(http.HandlerFunc(handler)).ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusBadRequest {
 		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusBadRequest)
@@ -378,16 +388,16 @@ func TestHandleSignMiddleware_MiddlewareWasCalledByPath_Return400BadRequest(t *t
 	}
 }
 
-func TestHandleSignMiddleware_MiddlewareWasCalledWithoutContentTypeHeader_Return400BadRequest(t *testing.T) {
+func TestHandleSignMiddleware_MiddlewareWasCalledWithoutContentTypeHeader_Return406NotAcceptable(t *testing.T) {
 	appSecret, err := base64.StdEncoding.DecodeString("Rg9iJXX0Jkun9u4Rp6no8HTNEdHlfX9aZYbFJ9b6YdQ=")
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"id",
 		"https://someone.d-velop.cloud",
@@ -416,9 +426,9 @@ func TestHandleSignMiddleware_MiddlewareWasCalledWithoutContentTypeHeader_Return
 	}
 
 	rr := httptest.NewRecorder()
-	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+	requestsignature.HandleCloudSignatureMiddleware(appSecret, now, mockLogInfo, mockLogError)(http.HandlerFunc(handler)).ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusBadRequest {
+	if status := rr.Code; status != http.StatusNotAcceptable {
 		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusBadRequest)
 	}
 	if handlerCalled {
@@ -431,11 +441,11 @@ func TestHandleSignMiddleware_MiddlewareWasCalledButSignatureIsInvalid_Return403
 	if err != nil {
 		t.Fatalf("app secret string is not valid base64 encoded string. Error = %v", err)
 	}
-	now := func()time.Time {
-		return time.Date(2019,time.August,9,8,49,45,0,time.UTC)
+	now := func() time.Time {
+		return time.Date(2019, time.August, 9, 8, 49, 45, 0, time.UTC)
 	}
 
-	dto := requestsignature.RequestSignatureDto{
+	dto := requestsignature.Dto{
 		"subscribe",
 		"wrong id to generate wrong body hash",
 		"https://someone.d-velop.cloud",
@@ -446,7 +456,7 @@ func TestHandleSignMiddleware_MiddlewareWasCalledButSignatureIsInvalid_Return403
 		"x-dv-signature-algorithm": "DV1-HMAC-SHA256",
 		"x-dv-signature-timestamp": "2019-08-09T08:49:42Z",
 		"Authorization":            "Bearer 02783453441665bf27aa465cbbac9b98507ae94c54b6be2b1882fe9a05ec104c",
-		"Content-Type": 			"application/json",
+		"Content-Type":             "application/json",
 	}
 
 	payload := &bytes.Buffer{}
@@ -464,7 +474,7 @@ func TestHandleSignMiddleware_MiddlewareWasCalledButSignatureIsInvalid_Return403
 	}
 
 	rr := httptest.NewRecorder()
-	requestsignature.HandleSignMiddleware(appSecret,now)(http.HandlerFunc(handler)).ServeHTTP(rr,req)
+	requestsignature.HandleCloudSignatureMiddleware(appSecret, now, mockLogInfo, mockLogError)(http.HandlerFunc(handler)).ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusForbidden {
 		t.Fatalf("wrong status code returned: got %v want %v", status, http.StatusForbidden)

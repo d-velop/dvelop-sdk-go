@@ -1,13 +1,12 @@
 package requestsignature
 
 import (
+	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path"
 	"reflect"
@@ -21,17 +20,22 @@ type RequestSigner interface {
 	ValidateSignedRequest(req *http.Request) error
 }
 
-type RequestSignatureDto struct {
-					EventType string `json:"type"`
-					TenantId  string `json:"tenantId"`
-					BaseUri   string `json:"baseUri"`
-				}
+type loggerFunc func(ctx context.Context, message string)
+
+type Dto struct {
+	EventType string `json:"type"`
+	TenantId  string `json:"tenantId"`
+	BaseUri   string `json:"baseUri"`
+}
 
 // the DvelopLifeCycleEventPath is path of an app endpoint, that apps must be provide
 const DvelopLifeCycleEventPath = "dvelop-cloud-lifecycle-event"
 
 // header who contains relevant headers for signature
 const signatureHeaderKey = "x-dv-signature-headers"
+
+// header who contains timestamp of request
+const timestampHeaderKey = "x-dv-signature-timestamp"
 
 // allowed content-type header value
 const validContentTypeHeaderValue = "application/json"
@@ -40,7 +44,7 @@ const validContentTypeHeaderValue = "application/json"
 const timeDiff = 5 * time.Minute
 
 // Validate signature of request i.e. for validate HTTP events from cloud center
-// The middleware "HandleSignMiddleware" checks the signature of incoming requests. This is important for
+// The middleware "HandleCloudSignatureMiddleware" checks the signature of incoming requests. This is important for
 // cloud center to app authentication. The cloudcenter make an POST request to app with a signature. The middleware
 // checks if request is a POST request and the content-type header is set to "application/json".
 // If the requested signature is valid, then your handler is invoke to handle the request. If the
@@ -77,39 +81,39 @@ const timeDiff = 5 * time.Minute
 //		})
 //	}
 
-func HandleSignMiddleware(appSecret []byte, timeNow func() time.Time) func(http.Handler) http.Handler {
+func HandleCloudSignatureMiddleware(appSecret []byte, timeNow func() time.Time, logError, logInfo loggerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			ctx := req.Context()
 
 			if appSecret == nil {
-				log.Print("error validation signed request because app secret has not been configured")
+				logError(ctx, "validation signed request failed because app secret has not been configured")
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 
 			if req.Method != http.MethodPost {
-				log.Printf("only POST request can be signed. Got method %v", req.Method)
+				logError(ctx, fmt.Sprintf("only POST request can be signed. Got method %v", req.Method))
 				http.Error(rw, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 				return
 			}
 
 			if pathBase := path.Base(req.URL.Path); pathBase != DvelopLifeCycleEventPath {
-				log.Printf("path %v is not life cycle path. Life cycle path is %v", req.URL.Path, DvelopLifeCycleEventPath)
+				logError(ctx, fmt.Sprintf("path %v is not life cycle path. Life cycle path must %v", req.URL.Path, DvelopLifeCycleEventPath))
 				http.Error(rw, fmt.Sprintf("wrong life cylce path: got %v", req.URL.Path), http.StatusBadRequest)
 				return
 			}
 
-			validContentTypeHeaderValue := "application/json"
 			if accept := req.Header.Get("content-type"); accept != validContentTypeHeaderValue {
-				log.Printf("wrong content-type header found. Got %v want %v", accept, validContentTypeHeaderValue)
-				http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+				logError(ctx, fmt.Sprintf("wrong content-type header found. Got %v want %v", accept, validContentTypeHeaderValue))
+				http.Error(rw, fmt.Sprintf("%s: please use content-type '%s'", http.StatusText(http.StatusBadRequest), validContentTypeHeaderValue), http.StatusNotAcceptable)
 				return
 			}
 
-			signer := NewRequestSigner(appSecret, timeNow)
+			signer := NewRequestSigner(appSecret, timeNow, logInfo)
 			err := signer.ValidateSignedRequest(req)
 			if err != nil {
-				log.Print("validate signed request failed: ", err)
+				logError(ctx, fmt.Sprintf("validate signed request failed: %v", err))
 				http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				return
 			}
@@ -167,26 +171,28 @@ func HandleSignMiddleware(appSecret []byte, timeNow func() time.Time) func(http.
 type requestSigner struct {
 	appSecret []byte
 	now       func() time.Time
+	logInfo   loggerFunc
 }
 
-func NewRequestSigner(appSecret []byte, timeNow func() time.Time) RequestSigner {
+func NewRequestSigner(appSecret []byte, timeNow func() time.Time, logInfo loggerFunc) RequestSigner {
 	return &requestSigner{
 		appSecret,
 		timeNow,
+		logInfo,
 	}
 }
 
 // validate signed request as function
 func (signer *requestSigner) ValidateSignedRequest(req *http.Request) error {
-	if signer.appSecret == nil {
-		return errors.New("app secret has not been configured")
+	if len(signer.appSecret) == 0 {
+		return fmt.Errorf("app secret has not been configured")
 	}
 
 	if contentType := req.Header.Get("content-type"); contentType != validContentTypeHeaderValue {
-		return errors.New(fmt.Sprintf("wrong accept header found. Got %v want %v", contentType, validContentTypeHeaderValue))
+		return fmt.Errorf("wrong accept header found. Got %v want %v", contentType, validContentTypeHeaderValue)
 	}
 
-	authorizationHeaderValue, err := signer.isAuthorationHeaderValid(req)
+	authorizationHeaderValue, err := signer.isAuthorizationHeaderValid(req)
 	if err != nil {
 		return err
 	}
@@ -195,18 +201,20 @@ func (signer *requestSigner) ValidateSignedRequest(req *http.Request) error {
 	if err != nil {
 		return err
 	}
+
 	normalizedRequestHash, err := signer.getHexHashForNormalizedHeaders(req)
 	if err != nil {
 		return err
 	}
-	log.Print("normalized request hex hash: ", normalizedRequestHash)
 
 	hmacHexValue := signer.getHmacHash(normalizedRequestHash)
-	log.Print("hmac hex hash: ", hmacHexValue)
 
 	if !signer.isAuthorizationHeaderEqualsToCalculatedHmacHex(authorizationHeaderValue, hmacHexValue) {
-		return errors.New(fmt.Sprintf("wrong authorization header. Got %v want %v", authorizationHeaderValue, hmacHexValue))
+		return fmt.Errorf("wrong signature in authorization header. Got %v want %v", authorizationHeaderValue, hmacHexValue)
 	}
+
+	signer.logInfo(req.Context(), "received signature is valid")
+
 	return nil
 }
 
@@ -214,21 +222,22 @@ func (signer *requestSigner) isAuthorizationHeaderEqualsToCalculatedHmacHex(auth
 	return reflect.DeepEqual(authorizationHeaderValue, hmacHexValue)
 }
 
-func (signer *requestSigner) isAuthorationHeaderValid(req *http.Request) (string, error) {
+func (signer *requestSigner) isAuthorizationHeaderValid(req *http.Request) (string, error) {
 	bearerRegex := regexp.MustCompile(`(?m)^(Bearer [[:xdigit:]]+)$`)
 	authorizationHeaderValue := req.Header.Get("Authorization")
 	if authorizationHeaderValue == "" {
-		return "", errors.New("authorization header missing")
+		return "", fmt.Errorf("authorization header missing")
 	}
 	if !bearerRegex.MatchString(authorizationHeaderValue) {
-		return "", errors.New(fmt.Sprintf("found authorization header is not a valid Bearer token. Got %v", authorizationHeaderValue))
+		return "", fmt.Errorf("found authorization header is not a valid Bearer token. Got %v", authorizationHeaderValue)
 	}
 	authorizationHeaderValue = strings.TrimPrefix(authorizationHeaderValue, "Bearer ")
 	return authorizationHeaderValue, nil
 }
 
 func (signer *requestSigner) isTimestampValid(req *http.Request) error {
-	timestampHeaderValue, err := time.Parse(time.RFC3339, req.Header.Get("x-dv-signature-timestamp"))
+	signer.logInfo(req.Context(), "validate timestamp from request header")
+	timestampHeaderValue, err := time.Parse(time.RFC3339, req.Header.Get(timestampHeaderKey))
 	if err != nil {
 		return err
 	}
@@ -239,7 +248,7 @@ func (signer *requestSigner) isTimestampValid(req *http.Request) error {
 	timeAfterTimestamp := timeNow.Add(timeDiff)
 
 	if !(timestampHeaderValue.After(timeBeforTimestamp) && timestampHeaderValue.Before(timeAfterTimestamp)) {
-		return errors.New(fmt.Sprintf("request is timed out: timestamp from request: %v, current time: %v", timestampHeaderValue.Format(time.RFC3339), timeNow.Format(time.RFC3339)))
+		return fmt.Errorf("request is timed out: timestamp from request: %v, current time: %v", timestampHeaderValue.Format(time.RFC3339), timeNow.Format(time.RFC3339))
 	}
 
 	return nil
@@ -247,7 +256,7 @@ func (signer *requestSigner) isTimestampValid(req *http.Request) error {
 
 func (signer *requestSigner) getHexHashForNormalizedHeaders(req *http.Request) (hex string, err error) {
 	if req.Body == nil {
-		return "", errors.New("payload missing")
+		return "", fmt.Errorf("payload missing")
 	}
 
 	body, err := signer.getBodyFromRequest(req)
@@ -261,26 +270,30 @@ func (signer *requestSigner) getHexHashForNormalizedHeaders(req *http.Request) (
 	normalizedRequest := signer.getNormalizedRequestWithHeaderAndBody(req, signedHeaders, body)
 
 	strNormalizedRequest := strings.Join(normalizedRequest, "\n")
-	log.Printf("normalized request: %#v", strNormalizedRequest)
+	signer.logInfo(req.Context(), fmt.Sprintf("normalized request: %#v", strNormalizedRequest))
 
 	hashNormalizedRequest := sha256.Sum256([]byte(strNormalizedRequest))
+
+	signer.logInfo(req.Context(), "hashing normalized request")
 
 	return strings.ToLower(fmt.Sprintf("%x", hashNormalizedRequest)), nil
 }
 
 func (signer *requestSigner) getNormalizedRequestWithHeaderAndBody(req *http.Request, signedHeaders []string, body []byte) []string {
-	normalizedHeaders := []string{}
+	var normalizedHeaders []string
 
 	for _, name := range signedHeaders {
 		headerValue := req.Header.Get(name)
 		normalizedHeaders = append(normalizedHeaders, fmt.Sprintf("%v:%v", strings.ToLower(name), strings.TrimSpace(headerValue)))
 	}
 
-	normalizedRequest := []string{}
+	var normalizedRequest []string
 	normalizedRequest = append(normalizedRequest, req.Method)
 	normalizedRequest = append(normalizedRequest, req.URL.Path)
 	normalizedRequest = append(normalizedRequest, req.URL.RawQuery)
 	normalizedRequest = append(normalizedRequest, fmt.Sprintf("%v\n", strings.Join(normalizedHeaders, "\n")))
+
+	signer.logInfo(req.Context(), "hashing body")
 	normalizedRequest = append(normalizedRequest, signer.getHexHashedPayload(body))
 
 	return normalizedRequest
@@ -288,12 +301,11 @@ func (signer *requestSigner) getNormalizedRequestWithHeaderAndBody(req *http.Req
 
 func (signer *requestSigner) getBodyFromRequest(req *http.Request) ([]byte, error) {
 	if req.GetBody != nil {
-		log.Print("get copy of request body")
+		signer.logInfo(req.Context(), "get a copy of request body")
 
-		var bodyReader io.Reader
 		bodyReader, err := req.GetBody()
 		if err != nil {
-			return nil,  err
+			return nil, err
 		}
 
 		body, err := ioutil.ReadAll(bodyReader)
@@ -301,21 +313,22 @@ func (signer *requestSigner) getBodyFromRequest(req *http.Request) ([]byte, erro
 			return nil, err
 		}
 
-		return  body,nil
-	} else {
-		log.Print("request.GetBody is nil. Read body and create new request body (reader) with copy of body")
-
-		body, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			return nil,err
-		}
-
 		return body, nil
 	}
+
+	signer.logInfo(req.Context(), "request.GetBody is nil. Read body and create new request body with read body data")
+
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+	return body, nil
 }
 
 func (signer *requestSigner) getHexHashedPayload(payload []byte) string {
-	log.Print("payload: ", string(payload))
 	hash := sha256.Sum256(payload)
 	return strings.ToLower(fmt.Sprintf("%x", hash))
 }
