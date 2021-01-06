@@ -156,10 +156,7 @@ func (rw *responseWriter) response() (*events.APIGatewayProxyResponse, error) {
 	response := &events.APIGatewayProxyResponse{}
 
 	if rw.snapHeader != nil && len(rw.snapHeader) > 0 {
-		response.Headers = map[string]string{}
-		for key, value := range rw.snapHeader {
-			response.Headers[key] = strings.Join(value, ", ")
-		}
+		response.MultiValueHeaders = rw.snapHeader
 	}
 
 	if rw.body.Len() > 0 {
