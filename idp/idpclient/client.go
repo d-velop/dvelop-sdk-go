@@ -156,7 +156,7 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
 		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg[:len(responseMsg)-1])
+			resp.Request.URL, resp.StatusCode, responseMsg)
 	}
 }
 
