@@ -438,7 +438,6 @@ func TestIdpReturnsUnexpectedStatusCode_GetPrincipalById_ReturnsError(t *testing
 
 func TestNonExplicitHandledReturnCodeWithEmptyResponseMsg_Validate_ReturnsError(t *testing.T) {
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(20 * time.Millisecond)
 		w.Header().Set("Cache-Control", "max-age=1600, private")
 		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
 		w.WriteHeader(403)
@@ -447,7 +446,7 @@ func TestNonExplicitHandledReturnCodeWithEmptyResponseMsg_Validate_ReturnsError(
 	}))
 	defer idpStub.Close()
 
-	_, err := defaultClient.Validate(context.Background(), idpStub.URL, "1", validAuthSessionId)
+	_, err := defaultClient.Validate(context.Background(), idpStub.URL, "1", invalidAuthSessionId)
 
 	if err == nil {
 		t.Error("expects an error of the idp")
