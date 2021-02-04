@@ -189,6 +189,7 @@ func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, ten
 		return nil, fmt.Errorf("user is not allowed to invoke '%s'. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
 			resp.Request.URL, resp.StatusCode, responseMsg)
 	case http.StatusNotFound:
+		_, _ = ioutil.ReadAll(resp.Body)
 		return nil, nil
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
