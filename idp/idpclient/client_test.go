@@ -397,7 +397,7 @@ func TestCallerIsAuthorizedAndPrincipalExists_GetPrincipalById_ReturnsPrincipal(
 	}
 }
 
-func TestCallerIsAuthorizedAndPrincipalDoesntExist_GetPrincipalById_ReturnsError(t *testing.T) {
+func TestCallerIsAuthorizedAndPrincipalDoesntExist_GetPrincipalById_ReturnsNil(t *testing.T) {
 	const authSessionIdFromAuthorizedCaller = validAuthSessionId
 	existingPrincipal := scim.Principal{Id: "719052ec-0c46-4db4-9cc4-f57e6492d25d"}
 	idpStub := test.NewIdpUsersStub(authSessionIdFromAuthorizedCaller, existingPrincipal)
@@ -405,8 +405,12 @@ func TestCallerIsAuthorizedAndPrincipalDoesntExist_GetPrincipalById_ReturnsError
 	noneExistingPrincipalId := "83db85b2-89d3-4586-b455-ad041ff38195"
 	got, err := defaultClient.GetPrincipalById(context.Background(), idpStub.URL, "1", authSessionIdFromAuthorizedCaller, noneExistingPrincipalId)
 
-	if err == nil || got != nil {
-		t.Errorf("expected an error because principal with id '%s' doesn't exist but got no error", noneExistingPrincipalId)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if got != nil {
+		t.Errorf("expected principal value nil, got %v ",got)
 	}
 }
 

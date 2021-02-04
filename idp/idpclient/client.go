@@ -163,6 +163,10 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 /*
 GetPrincipalById gets the principal specified by principalId for the tenant specified by systemBaseUri and tenantId.
 The authSessionId is used to authorize the request.
+
+If the user exists, a none nil *scim.Principal is returned.
+Otherwise the returned *scim.Principal is nil.
+
 */
 func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, principalId string) (*scim.Principal, error) {
 	// tenantid not used so far but included to implement a cache without changing the method signature
@@ -185,9 +189,7 @@ func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, ten
 		return nil, fmt.Errorf("user is not allowed to invoke '%s'. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
 			resp.Request.URL, resp.StatusCode, responseMsg)
 	case http.StatusNotFound:
-		responseMsg, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("user '%s' doesn't exist. Identityprovider returned HTTP-Statuscode '%d' and message '%s'",
-			resp.Request.URL, resp.StatusCode, responseMsg)
+		return nil, nil
 	default:
 		responseMsg, _ := ioutil.ReadAll(resp.Body)
 		return nil, fmt.Errorf("unexpected error. Identityprovider '%s' returned HTTP-Statuscode '%d' and message '%s'",
