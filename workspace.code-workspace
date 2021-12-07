@@ -1,0 +1,34 @@
+{
+	// Set up multi-root workspace because the go language server (gopls) requires a workspace folder for each go module for multi module projects.
+	// cf. https://github.com/golang/tools/blob/master/gopls/doc/workspace.md
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "contentnegotiation"
+		},
+		{
+			"path": "environment"
+		},
+		{
+			"path": "idp"
+		},
+		{
+			"path": "lambda"
+		},
+		{
+			"path": "log"
+		},
+		{
+			"path": "requestid"
+		},
+		{
+			"path": "requestlog"
+		},
+		{
+			"path": "tenant"
+		}
+	],
+	"settings": {}
+}
