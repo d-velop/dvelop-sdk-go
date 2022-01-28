@@ -8,7 +8,7 @@ import (
 // An Event represents a structured logeevent inspired by the semantic model of OTEL (https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/data-model.md)
 type Event struct {
 	Time       *time.Time  `json:"time,omitempty"`  // Time when the event occurred measured by the origin clock, normalized to UTC.
-	Severity   uint8       `json:"sev,omitempty"`   // Numerical value of the severity cf. Severity constants like SeverityInfo for possible values and their semantics
+	Severity   Severity    `json:"sev,omitempty"`   // Numerical value of the severity cf. Severity constants like SeverityInfo for possible values and their semantics
 	Name       string      `json:"name,omitempty"`  // Short event identifier that does not contain varying parts. Name describes what happened (e.g. "ProcessStarted"). Recommended to be no longer than 50 characters. Not guaranteed to be unique in any way. Typically used for filtering and grouping purposes in backends. Can be used to identify domain events like FeaturesRequested or UserLoggedIn (cf. example).
 	Body       interface{} `json:"body,omitempty"`  // A value containing the body of the log record. Can be for example a human-readable string message (including multi-line) describing the event in a free form or it can be a structured data composed of arrays and maps of other values. Can vary for each occurrence of the event coming from the same source.
 	TenantId   string      `json:"tn,omitempty"`    // ID of the tenant to which this event belongs.
@@ -154,6 +154,8 @@ func (s *Client) UnmarshalJSON(data []byte) error {
 	s.Duration = time.Millisecond * time.Duration(str.Duration)
 	return nil
 }
+
+type Severity uint8
 
 const (
 	SeverityDebug = 5  // The information is meant for the developer of the app or component. The purpose it to follow the execution path while explicitly debugging a certain problem.
