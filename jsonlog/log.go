@@ -28,11 +28,31 @@ func (l *Logger) SetOutput(w io.Writer) {
 
 func (l *Logger) Print(ctx context.Context, sev Severity, v ...interface{}) {
 
-	l.writeOutput(ctx, sev, fmt.Sprint(v...))
+	d, e := l.getLogdata(v...)
+	if e {
+		v = v[:len(v)-1]
+	}
+
+	l.writeOutput(ctx, sev, fmt.Sprint(v...), d)
 }
 
 func (l *Logger) Printf(ctx context.Context, sev Severity, format string, v ...interface{}) {
-	l.writeOutput(ctx, sev, fmt.Sprintf(format, v...))
+
+	d, e := l.getLogdata(v...)
+	if e {
+		v = v[:len(v)-1]
+	}
+
+	l.writeOutput(ctx, sev, fmt.Sprintf(format, v...), d)
+}
+
+func (l *Logger) getLogdata(v ...interface{}) (*Logdata, bool) {
+	d, e := v[len(v)-1].(Logdata)
+	if e {
+		return &d, true
+	} else {
+		return nil, false
+	}
 }
 
 //	Time       	-> writeOutput
@@ -40,7 +60,7 @@ func (l *Logger) Printf(ctx context.Context, sev Severity, format string, v ...i
 //	Name
 //	Body
 //	TenantId  	-> Hook (Tenant-Middleware)
-//	TraceId     	-> Hook (?-Middleware)
+//	TraceId     -> Hook (?-Middleware)
 //	SpanId    	-> Hook
 //	Resource   	-> Hook
 //	Attributes
@@ -49,7 +69,10 @@ func (l *Logger) Printf(ctx context.Context, sev Severity, format string, v ...i
 //		...
 //	Visibility
 
-func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string) {
+// setWriteMessage wenn man bei der Entwicklung einen besseren Consolen-Output haben möchte
+// performance ??
+
+func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string, d *Logdata) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -59,7 +82,10 @@ func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string) {
 		Time:     &currentTime,
 		Severity: sev,
 		Body:     msg,
-		//Attributes:
+	}
+
+	if d != nil {
+		d.AddToEvent(&e)
 	}
 
 	for _, h := range hooks {
