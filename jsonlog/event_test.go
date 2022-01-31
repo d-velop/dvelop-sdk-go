@@ -77,36 +77,6 @@ func TestEventWithNonUTCTime_Marshal_TimePropertyIsRFCFormattedUTCTimeAndOrigina
 		t.Errorf("\ngot   :'%v'\nwanted:'%v'", eventTime, originalTime)
 	}
 }
-// ****************************
-
-//Nächste Schritte:
-//	Vermutlich macht es Sinn, ein neues Log Package zu bauen, welches die JSON Events definiert (Serialisierung/Deserialsisierung)
-//	und ausschließlich nach FTS protokolliert. Wenn ich das bestehende erweitere, dann wird das intern zu unübersichtlich und
-//	macht das Ding auch zu vieles gleichzeitig. Dennoch kann man das Package als Drop in Replacement bauen. D.h. der Konsument muss
-//	lediglich den Import und die Konfiguration des Loggings ändern. Die Logstatements selbst könnten gleich oder zumindest ähnlich bleibem.
-//	import log "github.com/d-velop/dvelop-sdk-go/structuredlog"
-//	func (l *Logger) SetOutput(w io.Writer) bleibt, um den Output umzulenken
-//	func (l *Logger) SetWriteMessage(writeMsgFunc ...func(ctx context.Context, buf []byte, message string) []byte) wird zu
-//	func (l *Logger) TransformEvent(transformEventFunc ...func(ctx context.Context, e Event)) da SetWriteMessage sowieso nicht in der go log spec drin ist
-//
-//type Logdata struct {
-//	Name       string
-//	Visibility int
-//	Attributes *log.Attributes
-//}
-//
-//func Test_INTERFACE_PROTOTYPE(t *testing.T) {
-//		logdata := Logdata{Name: "VacationRequested", Visibility: 1, Attributes: &log.Attributes{
-//			Http: &log.Http{
-//				Method: "Get",
-//			},
-//		}}
-//		log.Error(context.Background(), "Message")
-//		log.Error(context.Background(), "Message", logdata)
-//		log.Errorf(context.Background(), "Message %v", 1, logdata)
-//	}
-
-// ****************************
 
 func TestJsonStringWithoutVisProperty_Unmarshal_ProducesEventWithDefaultVisibility(t *testing.T) {
 	var e log.Event
