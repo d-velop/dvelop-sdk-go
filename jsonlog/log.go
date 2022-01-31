@@ -10,22 +10,39 @@ import (
 )
 
 type Logger struct {
-	mu    sync.Mutex
-	out   io.Writer
-	time  Time
-	hooks []Hook
+	mu           sync.Mutex
+	out          io.Writer
+	writeMessage Writer
+	time         Time
+	hooks        []Hook
 }
 
 var StdLogger = New(os.Stdout)
 
 func New(out io.Writer) *Logger {
-	return &Logger{out: out, time: time.Now}
+	return &Logger{
+		out: out,
+		time: time.Now,
+		writeMessage: func(e *Event) ([]byte, error) {
+			json, err := e.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			json = append(json, '\n')
+			return json, nil
+	}}
 }
 
 func (l *Logger) SetOutput(w io.Writer) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.out = w
+}
+
+func (l *Logger) SetWriteMessage(writeMsgFunc Writer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.writeMessage = writeMsgFunc
 }
 
 func (l *Logger) SetTime(time Time) {
@@ -112,7 +129,6 @@ func (l *Logger) getLogdata(v ...interface{}) (*Logdata, bool) {
 //		...
 //	Visibility
 
-// setWriteMessage wenn man bei der Entwicklung einen besseren Consolen-Output haben möchte
 // performance ??
 
 // ****************************
@@ -137,10 +153,9 @@ func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string, d *L
 		h(ctx, &e)
 	}
 
-	json, err := e.MarshalJSON()
+	o, err := l.writeMessage(&e)
 	if err == nil {
-		json = append(json, '\n')
-		l.out.Write(json)
+		l.out.Write(o)
 	}
 }
 

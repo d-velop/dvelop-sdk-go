@@ -133,6 +133,19 @@ func TestRegisterHook(t *testing.T) {
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"tn\":\"tnId\"}\n")
 }
 
+func TestLogger_SetWriteMessage(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+	l.SetWriteMessage(func(event *log.Event) ([]byte, error) {
+		return []byte("Use a custom writer"), nil
+	})
+	l.Print(context.Background(), log.SeverityDebug, "Log message")
+	rec.OutputShouldBe("Use a custom writer")
+}
+
 type outputRecorder struct {
 	*bytes.Buffer
 	t *testing.T
