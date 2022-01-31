@@ -120,7 +120,7 @@ func TestLogger_Printf_With_Logdata(t *testing.T) {
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log format message\",\"attr\":{\"http\":{\"method\":\"Get\"}},\"vis\":0}\n")
 }
 
-func TestRegisterHook(t *testing.T) {
+func TestLogger_RegisterHook(t *testing.T) {
 	rec := newOutputRecorder(t)
 	l := log.New(rec)
 	l.SetTime(func() time.Time {
