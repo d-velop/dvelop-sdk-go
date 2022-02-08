@@ -21,7 +21,7 @@ var StdLogger = New(os.Stdout)
 
 func New(out io.Writer) *Logger {
 	return &Logger{
-		out: out,
+		out:  out,
 		time: time.Now,
 		writeMessage: func(e *Event) ([]byte, error) {
 			json, err := e.MarshalJSON()
@@ -30,7 +30,7 @@ func New(out io.Writer) *Logger {
 			}
 			json = append(json, '\n')
 			return json, nil
-	}}
+		}}
 }
 
 func (l *Logger) SetOutput(w io.Writer) {
@@ -59,31 +59,30 @@ func (l *Logger) RegisterHook(h Hook) {
 
 func (l *Logger) Print(ctx context.Context, sev Severity, v ...interface{}) {
 
-	d, e := l.getLogdata(v...)
-	if e {
-		v = v[:len(v)-1]
+	var o []LogOption
+	for i := len(v); i > 0; i-- {
+		d, e := v[len(v)-1].(LogOption)
+		if e {
+			v = v[:len(v)-1]
+			o = append(o, d)
+		}
 	}
 
-	l.writeOutput(ctx, sev, fmt.Sprint(v...), d)
+	l.writeOutput(ctx, sev, fmt.Sprint(v...), o)
 }
 
 func (l *Logger) Printf(ctx context.Context, sev Severity, format string, v ...interface{}) {
 
-	d, e := l.getLogdata(v...)
-	if e {
-		v = v[:len(v)-1]
+	var o []LogOption
+	for i := len(v); i > 0; i-- {
+		d, e := v[len(v)-1].(LogOption)
+		if e {
+			v = v[:len(v)-1]
+			o = append(o, d)
+		}
 	}
 
-	l.writeOutput(ctx, sev, fmt.Sprintf(format, v...), d)
-}
-
-func (l *Logger) getLogdata(v ...interface{}) (*Logdata, bool) {
-	d, e := v[len(v)-1].(Logdata)
-	if e {
-		return &d, true
-	} else {
-		return nil, false
-	}
+	l.writeOutput(ctx, sev, fmt.Sprintf(format, v...), o)
 }
 
 // ****************************
@@ -133,7 +132,7 @@ func (l *Logger) getLogdata(v ...interface{}) (*Logdata, bool) {
 
 // ****************************
 
-func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string, d *Logdata) {
+func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string, options []LogOption) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -145,12 +144,12 @@ func (l *Logger) writeOutput(ctx context.Context, sev Severity, msg string, d *L
 		Body:     msg,
 	}
 
-	if d != nil {
-		d.AddToEvent(&e)
-	}
-
 	for _, h := range l.hooks {
 		h(ctx, &e)
+	}
+
+	for _, o := range options {
+		o(&e)
 	}
 
 	o, err := l.writeMessage(&e)

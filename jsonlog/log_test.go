@@ -44,25 +44,88 @@ func TestLogger_Print(t *testing.T) {
 	}
 }
 
-func TestLogger_Print_With_Logdata(t *testing.T) {
+func TestLogger_Print_With_LogOptionName(t *testing.T) {
 	rec := newOutputRecorder(t)
 	l := log.New(rec)
 	l.SetTime(func() time.Time {
 		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
 	})
 
-	logdata := log.NewLogdata()
-	logdata.Name = "CustomLogEvent"
-	logdata.Visibility = 0
-	logdata.Attributes = &log.Attributes{
-		Http: &log.Http{
-			Method: "Get",
-		},
-	}
+	l.Print(context.Background(), log.SeverityDebug, "Log message",
+		log.WithName("CustomLogEvent"))
 
-	l.Print(context.Background(), log.SeverityDebug, "Log message", logdata)
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"}},\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log message\"}\n")
 }
+
+func TestLogger_Print_With_LogOptionVisibility(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Print(context.Background(), log.SeverityDebug, "Log message",
+		log.WithVisibility(false))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogger_Print_With_LogOptionHttp(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Print(context.Background(), log.SeverityDebug, "Log message",
+		log.WithHttp(log.Http{Method: "Get"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"}}}\n")
+}
+
+func TestLogger_Print_With_LogOptionException(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Print(context.Background(), log.SeverityDebug, "Log message",
+		log.WithException(log.Exception{Type: "CustomLogException"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"attr\":{\"exception\":{\"type\":\"CustomLogException\"}}}\n")
+}
+
+func TestLogger_Print_With_LogOptionDB(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Print(context.Background(), log.SeverityDebug, "Log message",
+		log.WithDB(log.DB{Name: "CustomDb"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"attr\":{\"db\":{\"name\":\"CustomDb\"}}}\n")
+}
+
+func TestLogger_Print_With_LogOptions(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Print(context.Background(), log.SeverityDebug, "Log", " message",
+		log.WithName("CustomLogEvent"),
+		log.WithVisibility(false),
+		log.WithHttp(log.Http{Method: "Get"}),
+		log.WithException(log.Exception{Type: "CustomLogException"}),
+		log.WithDB(log.DB{Name: "CustomDb"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"},\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"}},\"vis\":0}\n")
+}
+
 
 func TestLogger_Printf(t *testing.T) {
 	testcases := []struct {
@@ -100,24 +163,86 @@ func TestLogger_Printf(t *testing.T) {
 	}
 }
 
-func TestLogger_Printf_With_Logdata(t *testing.T) {
+func TestLogger_Printf_With_LogOptionName(t *testing.T) {
 	rec := newOutputRecorder(t)
 	l := log.New(rec)
 	l.SetTime(func() time.Time {
 		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
 	})
 
-	logdata := log.NewLogdata()
-	logdata.Name = "CustomLogEvent"
-	logdata.Visibility = 0
-	logdata.Attributes = &log.Attributes{
-		Http: &log.Http{
-			Method: "Get",
-		},
-	}
+	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format",
+		log.WithName("CustomLogEvent"))
 
-	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format", logdata)
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log format message\",\"attr\":{\"http\":{\"method\":\"Get\"}},\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log format message\"}\n")
+}
+
+func TestLogger_Printf_With_LogOptionVisibility(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format",
+		log.WithVisibility(false))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log format message\",\"vis\":0}\n")
+}
+
+func TestLogger_Printf_With_LogOptionHttp(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format",
+		log.WithHttp(log.Http{Method: "Get"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log format message\",\"attr\":{\"http\":{\"method\":\"Get\"}}}\n")
+}
+
+func TestLogger_Printf_With_LogOptionException(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format",
+		log.WithException(log.Exception{Type: "CustomLogException"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log format message\",\"attr\":{\"exception\":{\"type\":\"CustomLogException\"}}}\n")
+}
+
+func TestLogger_Printf_With_LogOptionDB(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format",
+		log.WithDB(log.DB{Name: "CustomDb"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log format message\",\"attr\":{\"db\":{\"name\":\"CustomDb\"}}}\n")
+}
+
+func TestLogger_Printf_With_LogOptions(t *testing.T) {
+	rec := newOutputRecorder(t)
+	l := log.New(rec)
+	l.SetTime(func() time.Time {
+		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
+	})
+
+	l.Printf(context.Background(), log.SeverityDebug, "Log %s message", "format",
+		log.WithName("CustomLogEvent"),
+		log.WithVisibility(false),
+		log.WithHttp(log.Http{Method: "Get"}),
+		log.WithException(log.Exception{Type: "CustomLogException"}),
+		log.WithDB(log.DB{Name: "CustomDb"}))
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"name\":\"CustomLogEvent\",\"body\":\"Log format message\",\"attr\":{\"http\":{\"method\":\"Get\"},\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"}},\"vis\":0}\n")
 }
 
 func TestLogger_RegisterHook(t *testing.T) {
