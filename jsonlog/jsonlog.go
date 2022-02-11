@@ -61,8 +61,7 @@ func (l *Logger) Print(ctx context.Context, sev Severity, v ...interface{}) {
 
 	var o []LogOption
 	for i := len(v); i > 0; i-- {
-		d, e := v[len(v)-1].(LogOption)
-		if e {
+		if d, found := v[len(v)-1].(LogOption); found {
 			v = v[:len(v)-1]
 			o = append(o, d)
 		}
@@ -75,8 +74,7 @@ func (l *Logger) Printf(ctx context.Context, sev Severity, format string, v ...i
 
 	var o []LogOption
 	for i := len(v); i > 0; i-- {
-		d, e := v[len(v)-1].(LogOption)
-		if e {
+		if d, found := v[len(v)-1].(LogOption); found {
 			v = v[:len(v)-1]
 			o = append(o, d)
 		}
