@@ -9,7 +9,7 @@ type Time func() time.Time
 
 type Hook func(ctx context.Context, event *Event)
 
-type Writer func(event *Event) ([]byte, error)
+type Writer func(event *Event, msg string) ([]byte, error)
 
 type LogOption func(e *Event)
 

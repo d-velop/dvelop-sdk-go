@@ -264,11 +264,11 @@ func TestLogger_SetWriteMessage(t *testing.T) {
 	l.SetTime(func() time.Time {
 		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
 	})
-	l.SetWriteMessage(func(event *log.Event) ([]byte, error) {
-		return []byte("Use a custom writer"), nil
+	l.SetWriteMessage(func(event *log.Event, msg string) ([]byte, error) {
+		return []byte("Use a custom writer: " + msg), nil
 	})
 	l.Print(context.Background(), log.SeverityDebug, "Log message")
-	rec.OutputShouldBe("Use a custom writer")
+	rec.OutputShouldBe("Use a custom writer: Log message")
 }
 
 type outputRecorder struct {
