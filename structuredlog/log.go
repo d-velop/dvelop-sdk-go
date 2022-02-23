@@ -12,27 +12,24 @@ import (
 type Logger struct {
 	//mu           sync.Mutex
 	out io.Writer
-	//writeMessage Writer
+	outputFormatter OutputFormatterFunc
 	time  Time
 	hooks []Hook
 }
 
 type Time func() time.Time
 
-type Hook func(ctx context.Context, event *Event)
+type Hook func(ctx context.Context, e *Event)
+
+type OutputFormatterFunc func(e *Event, msg string) ([]byte, error)
 
 func New(out io.Writer) *Logger {
 	return &Logger{
 		out:  out,
 		time: time.Now,
-		//writeMessage: func(e *Event, msg string) ([]byte, error) {
-		//	json, err := e.MarshalJSON()
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//	json = append(json, '\n')
-		//	return json, nil
-		//}
+		outputFormatter: func(e *Event, msg string) ([]byte, error) {
+			return json.Marshal(e)
+		},
 	}
 }
 
@@ -46,16 +43,16 @@ func (l *Logger) Output(ctx context.Context, sev Severity, msg string) {
 
 	t := l.time()
 	e := Event{
-		Time:       &t,
-		Severity:   sev,
-		Body:       msg,
+		Time:     &t,
+		Severity: sev,
+		Body:     msg,
 	}
 
 	for _, h := range l.hooks {
 		h(ctx, &e)
 	}
 
-	json, err := json.Marshal(e)
+	json, err := l.outputFormatter(&e, msg)
 	if err == nil {
 		l.out.Write(json)
 	}
@@ -71,6 +68,12 @@ func SetTime(time Time) {
 	//l.mu.Lock()
 	//defer l.mu.Unlock()
 	std.time = time
+}
+
+func SetOutputFormatter(f OutputFormatterFunc) {
+	//l.mu.Lock()
+	//defer l.mu.Unlock()
+	std.outputFormatter = f
 }
 
 func RegisterHook(h Hook) {

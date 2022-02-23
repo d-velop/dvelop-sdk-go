@@ -3,6 +3,7 @@ package structuredlog_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	log "github.com/d-velop/dvelop-sdk-go/structuredlog"
 	"testing"
 	"time"
@@ -102,4 +103,15 @@ func TestLogMessageWithRegisteredHook_Output_AddServiceAndWritesJSONToBuffer(t *
 
 	log.Default().Output(context.Background(), log.SeverityDebug, "Log message")
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"res\":{\"svc\":{\"name\":\"GoApplication\",\"ver\":\"1.0.0\",\"inst\":\"instanceId\"}}}")
+}
+
+func TestLogMessageWithCustomOutputFormatter_Output_WritesCustomFormatToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+
+	log.SetOutputFormatter(func(e *log.Event, msg string) ([]byte, error) {
+		return []byte(fmt.Sprintf("This is a %s with severity level %d.", msg, e.Severity)), nil
+	})
+
+	log.Default().Output(context.Background(), log.SeverityDebug, "Log message")
+	rec.OutputShouldBe("This is a Log message with severity level 5.")
 }
