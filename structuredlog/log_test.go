@@ -26,6 +26,7 @@ func (o *outputRecorder) OutputShouldBe(expected string) {
 }
 
 func initializeLogger(t *testing.T) *outputRecorder {
+	log.Default().Init()
 	rec := newOutputRecorder(t)
 	log.SetOutput(rec)
 	log.SetTime(func() time.Time {
@@ -37,58 +38,58 @@ func initializeLogger(t *testing.T) *outputRecorder {
 func TestLogMessageWithSimpleString_Debug_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	log.Debug(context.Background(), "Log message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\"}")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\"}\n")
 }
 
 func TestLogMessageWithSimpleString_Info_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	log.Info(context.Background(), "Log message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n")
 }
 
 func TestLogMessageWithSimpleString_Error_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	log.Error(context.Background(), "Log message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\"}")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\"}\n")
 }
 
 func TestLogMessageWithMultipleStringParts_Debug_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	log.Debug(context.Background(), "Log ", "message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\"}")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\"}\n")
 }
 
 func TestLogMessageWithMultipleStringParts_Info_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	log.Info(context.Background(), "Log ", "message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n")
 }
 
 func TestLogMessageWithMultipleStringParts_Error_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	log.Error(context.Background(), "Log ", "message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\"}")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\"}\n")
 }
 
 func TestLogMessageIsFormatted_Debug_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
-	log.Debugf(context.Background(), "This is a %v log message", "formatted")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"This is a formatted log message\"}")
+	log.Debugf(context.Background(), "This is a %s log message", "formatted")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"This is a formatted log message\"}\n")
 }
 
 func TestLogMessageIsFormatted_Info_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
-	log.Infof(context.Background(), "This is a %v log message", "formatted")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"This is a formatted log message\"}")
+	log.Infof(context.Background(), "This is a %s log message", "formatted")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"This is a formatted log message\"}\n")
 }
 
 func TestLogMessageIsFormatted_Error_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
-	log.Errorf(context.Background(), "This is a %v log message", "formatted")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"This is a formatted log message\"}")
+	log.Errorf(context.Background(), "This is a %s log message", "formatted")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"This is a formatted log message\"}\n")
 }
 
-func TestLogMessageWithRegisteredHook_Output_AddServiceAndWritesJSONToBuffer(t *testing.T) {
+func TestLogMessageWithRegisteredHook_Info_AddServiceAndWritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 
 	log.RegisterHook(func(ctx context.Context, e *log.Event) {
@@ -101,17 +102,140 @@ func TestLogMessageWithRegisteredHook_Output_AddServiceAndWritesJSONToBuffer(t *
 		}
 	})
 
-	log.Default().Output(context.Background(), log.SeverityDebug, "Log message")
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"res\":{\"svc\":{\"name\":\"GoApplication\",\"ver\":\"1.0.0\",\"inst\":\"instanceId\"}}}")
+	log.Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"res\":{\"svc\":{\"name\":\"GoApplication\",\"ver\":\"1.0.0\",\"inst\":\"instanceId\"}}}\n")
 }
 
-func TestLogMessageWithCustomOutputFormatter_Output_WritesCustomFormatToBuffer(t *testing.T) {
+func TestLogMessageWithCustomOutputFormatter_Info_WritesCustomFormatToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 
 	log.SetOutputFormatter(func(e *log.Event, msg string) ([]byte, error) {
 		return []byte(fmt.Sprintf("This is a %s with severity level %d.", msg, e.Severity)), nil
 	})
 
-	log.Default().Output(context.Background(), log.SeverityDebug, "Log message")
-	rec.OutputShouldBe("This is a Log message with severity level 5.")
+	log.Info(context.Background(), "Log message")
+	rec.OutputShouldBe("This is a Log message with severity level 9.\n")
 }
+
+func TestLogMessageWithVisibilityIsFalse_Debug_AddVisPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Debug(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsTrue_Debug_DoNotAddVisPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(true).Debug(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\"}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalse_Info_AddVisPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalse_Error_AddVisPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Error(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalseAndMultipleStringParts_Debug_WritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Debug(context.Background(), "Log ", "message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalseAndMultipleStringParts_Info_WritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Info(context.Background(), "Log ", "message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalseAndMultipleStringParts_Error_WritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Error(context.Background(), "Log ", "message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalseAndIsFormatted_Debug_WritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Debugf(context.Background(), "This is a %s log message", "formatted")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"This is a formatted log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalseAndIsFormatted_Info_WritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Infof(context.Background(), "This is a %s log message", "formatted")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"This is a formatted log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithVisibilityIsFalseAndIsFormatted_Error_WritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithVisibility(false).Errorf(context.Background(), "This is a %s log message", "formatted")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"This is a formatted log message\",\"vis\":0}\n")
+}
+
+func TestLogMessageWithName_Info_AddNamePropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithName("Log message name").Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"name\":\"Log message name\",\"body\":\"Log message\"}\n")
+}
+
+func TestLogMessageWithHttp_Info_AddHttpPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithHttp(log.Http{Method: "Get"}).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"}}}\n")
+}
+
+func TestLogMessageWithDB_Info_AddDBPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithDB(log.DB{Name: "CustomDb"}).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"db\":{\"name\":\"CustomDb\"}}}\n")
+}
+
+func TestLogMessageWithException_Info_AddExceptionPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithException(log.Exception{Type: "CustomLogException"}).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"exception\":{\"type\":\"CustomLogException\"}}}\n")
+}
+
+func TestLogMessageWithEveryPossibleOption_Info_AddAllPropertiesAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.WithName("Log message name").
+		WithVisibility(false).
+		WithHttp(log.Http{Method: "Get"}).
+		WithDB(log.DB{Name: "CustomDb"}).
+		WithException(log.Exception{Type: "CustomLogException"}).
+		Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"name\":\"Log message name\",\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"},\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"}},\"vis\":0}\n")
+}
+
+func TestLogMessageWithRegisteredHookAndOtherService_Info_OverrideServicePropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+
+	log.RegisterHook(func(ctx context.Context, e *log.Event) {
+		e.Resource = &log.Resource{
+			Service: &log.Service{
+				Name:     "GoApplication",
+				Version:  "1.0.0",
+				Instance: "instanceId",
+			},
+		}
+	})
+
+	log.With(func(e *log.Event) {
+		e.Resource = &log.Resource{
+			Service: &log.Service{
+				Name:     "OtherGoApplication",
+				Version:  "2.0.0",
+				Instance: "instanceId",
+			},
+		}
+	}).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"res\":{\"svc\":{\"name\":\"OtherGoApplication\",\"ver\":\"2.0.0\",\"inst\":\"instanceId\"}}}\n")
+}
+
+
+// ... mutex

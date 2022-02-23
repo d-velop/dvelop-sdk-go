@@ -11,10 +11,10 @@ import (
 
 type Logger struct {
 	//mu           sync.Mutex
-	out io.Writer
+	out             io.Writer
 	outputFormatter OutputFormatterFunc
-	time  Time
-	hooks []Hook
+	time            Time
+	hooks           []Hook
 }
 
 type Time func() time.Time
@@ -23,23 +23,31 @@ type Hook func(ctx context.Context, e *Event)
 
 type OutputFormatterFunc func(e *Event, msg string) ([]byte, error)
 
-func New(out io.Writer) *Logger {
-	return &Logger{
-		out:  out,
-		time: time.Now,
-		outputFormatter: func(e *Event, msg string) ([]byte, error) {
-			return json.Marshal(e)
-		},
-	}
+func New() *Logger {
+	logger := Logger{}
+	logger.Init()
+	return &logger
 }
 
-var std = New(os.Stdout)
+var std = New()
 
 func Default() *Logger {
 	return std
 }
 
-func (l *Logger) Output(ctx context.Context, sev Severity, msg string) {
+func (l *Logger) Init() {
+	l.hooks = nil
+	l.out = os.Stdout
+	l.time = time.Now
+	l.outputFormatter = func(e *Event, msg string) ([]byte, error) {
+		return json.Marshal(e)
+	}
+}
+
+func (l *Logger) output(ctx context.Context, sev Severity, msg string, options []Option) {
+
+	//l.mu.Lock()
+	//defer l.mu.Unlock()
 
 	t := l.time()
 	e := Event{
@@ -52,9 +60,16 @@ func (l *Logger) Output(ctx context.Context, sev Severity, msg string) {
 		h(ctx, &e)
 	}
 
-	json, err := l.outputFormatter(&e, msg)
+	for _, o := range options {
+		o(&e)
+	}
+
+	s, err := l.outputFormatter(&e, msg)
 	if err == nil {
-		l.out.Write(json)
+		if len(s) == 0 || s[len(s)-1] != '\n' {
+			s = append(s, '\n')
+		}
+		l.out.Write(s)
 	}
 }
 
@@ -83,25 +98,25 @@ func RegisterHook(h Hook) {
 }
 
 func Debug(ctx context.Context, v ...interface{}) {
-	std.Output(ctx, SeverityDebug, fmt.Sprint(v...))
+	std.output(ctx, SeverityDebug, fmt.Sprint(v...), nil)
 }
 
 func Info(ctx context.Context, v ...interface{}) {
-	std.Output(ctx, SeverityInfo, fmt.Sprint(v...))
+	std.output(ctx, SeverityInfo, fmt.Sprint(v...), nil)
 }
 
 func Error(ctx context.Context, v ...interface{}) {
-	std.Output(ctx, SeverityError, fmt.Sprint(v...))
+	std.output(ctx, SeverityError, fmt.Sprint(v...), nil)
 }
 
 func Debugf(ctx context.Context, format string, v ...interface{}) {
-	std.Output(ctx, SeverityDebug, fmt.Sprintf(format, v...))
+	std.output(ctx, SeverityDebug, fmt.Sprintf(format, v...), nil)
 }
 
 func Infof(ctx context.Context, format string, v ...interface{}) {
-	std.Output(ctx, SeverityInfo, fmt.Sprintf(format, v...))
+	std.output(ctx, SeverityInfo, fmt.Sprintf(format, v...), nil)
 }
 
 func Errorf(ctx context.Context, format string, v ...interface{}) {
-	std.Output(ctx, SeverityError, fmt.Sprintf(format, v...))
+	std.output(ctx, SeverityError, fmt.Sprintf(format, v...), nil)
 }
