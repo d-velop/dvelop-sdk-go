@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 )
 
 type Logger struct {
-	//mu           sync.Mutex
+	mu           	sync.Mutex
 	out             io.Writer
 	outputFormatter OutputFormatterFunc
 	time            Time
@@ -36,6 +37,8 @@ func Default() *Logger {
 }
 
 func (l *Logger) Init() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.hooks = nil
 	l.out = os.Stdout
 	l.time = time.Now
@@ -45,9 +48,8 @@ func (l *Logger) Init() {
 }
 
 func (l *Logger) output(ctx context.Context, sev Severity, msg string, options []Option) {
-
-	//l.mu.Lock()
-	//defer l.mu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	t := l.time()
 	e := Event{
@@ -74,26 +76,26 @@ func (l *Logger) output(ctx context.Context, sev Severity, msg string, options [
 }
 
 func SetOutput(w io.Writer) {
-	//l.mu.Lock()
-	//defer l.mu.Unlock()
+	std.mu.Lock()
+	defer std.mu.Unlock()
 	std.out = w
 }
 
 func SetTime(time Time) {
-	//l.mu.Lock()
-	//defer l.mu.Unlock()
+	std.mu.Lock()
+	defer std.mu.Unlock()
 	std.time = time
 }
 
 func SetOutputFormatter(f OutputFormatterFunc) {
-	//l.mu.Lock()
-	//defer l.mu.Unlock()
+	std.mu.Lock()
+	defer std.mu.Unlock()
 	std.outputFormatter = f
 }
 
 func RegisterHook(h Hook) {
-	//l.mu.Lock()
-	//defer l.mu.Unlock()
+	std.mu.Lock()
+	defer std.mu.Unlock()
 	std.hooks = append(std.hooks, h)
 }
 

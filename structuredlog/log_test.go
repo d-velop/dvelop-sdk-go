@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	log "github.com/d-velop/dvelop-sdk-go/structuredlog"
+	"sync"
 	"testing"
 	"time"
 )
@@ -14,8 +15,16 @@ type outputRecorder struct {
 	t *testing.T
 }
 
-func newOutputRecorder(t *testing.T) *outputRecorder {
-	return &outputRecorder{&bytes.Buffer{}, t}
+type outputRecorderSlow struct {
+	*outputRecorder
+}
+
+func (r *outputRecorderSlow) Write(p []byte) (n int, err error) {
+	for _, b := range p {
+		time.Sleep(5 * time.Millisecond)
+		r.Buffer.Write([]byte{b})
+	}
+	return 0, err
 }
 
 func (o *outputRecorder) OutputShouldBe(expected string) {
@@ -27,7 +36,7 @@ func (o *outputRecorder) OutputShouldBe(expected string) {
 
 func initializeLogger(t *testing.T) *outputRecorder {
 	log.Default().Init()
-	rec := newOutputRecorder(t)
+	rec := &outputRecorder{&bytes.Buffer{}, t}
 	log.SetOutput(rec)
 	log.SetTime(func() time.Time {
 		return time.Date(2022, time.January, 01, 1, 2, 3, 4, time.UTC)
@@ -237,5 +246,21 @@ func TestLogMessageWithRegisteredHookAndOtherService_Info_OverrideServicePropert
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"res\":{\"svc\":{\"name\":\"OtherGoApplication\",\"ver\":\"2.0.0\",\"inst\":\"instanceId\"}}}\n")
 }
 
+func logAsync(wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Info(context.Background(), "Log message")
+}
 
-// ... mutex
+func TestSeveralLogMessagesAtTheSameTime_Info_WritesJSONToBuffer(t *testing.T) {
+	rec := &outputRecorderSlow{initializeLogger(t)}
+	log.SetOutput(rec)
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go logAsync(&wg)
+	go logAsync(&wg)
+	go logAsync(&wg)
+	wg.Wait()
+	rec.OutputShouldBe(fmt.Sprint("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n",
+		"{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n",
+		"{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n"))
+}
