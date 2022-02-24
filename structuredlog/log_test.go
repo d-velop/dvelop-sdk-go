@@ -35,7 +35,7 @@ func (o *outputRecorder) OutputShouldBe(expected string) {
 }
 
 func initializeLogger(t *testing.T) *outputRecorder {
-	log.Default().Init()
+	log.Default().Reset()
 	rec := &outputRecorder{&bytes.Buffer{}, t}
 	log.SetOutput(rec)
 	log.SetTime(func() time.Time {
