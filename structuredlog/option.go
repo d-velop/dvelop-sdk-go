@@ -3,6 +3,8 @@ package structuredlog
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 )
 
 type OptionBuilder struct {
@@ -11,13 +13,38 @@ type OptionBuilder struct {
 
 type Option func(e *Event)
 
-// With adds a custom option of the log event.
+// newHttpFromRequest creates a http attribute from http request.
+func newHttpFromRequest(req *http.Request, sc *int) *Http {
+	url := req.URL.String()
+	if req.URL.User != nil {
+		url = strings.Replace(url, req.URL.User.String() + "@", "", -1)
+	}
+
+	var h = &Http{
+		Method:    req.Method,
+		URL:       url,
+		Target:    req.URL.RequestURI(),
+		Host:      req.URL.Hostname(),
+		Scheme:    req.URL.Scheme,
+		Route:     req.URL.Path,
+		UserAgent: req.UserAgent(),
+		ClientIP:  req.RemoteAddr,
+	}
+
+	if sc != nil {
+		h.StatusCode = uint16(*sc)
+	}
+
+	return h
+}
+
+// With adds a custom option to the log event.
 func (ob *OptionBuilder) With(o Option) *OptionBuilder {
 	ob.options = append(ob.options, o)
 	return ob
 }
 
-// WithVisibility sets the visibility of the log event.
+// WithVisibility sets the visibility to the log event.
 func (ob *OptionBuilder) WithVisibility(vis bool) *OptionBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if !vis {
@@ -28,7 +55,7 @@ func (ob *OptionBuilder) WithVisibility(vis bool) *OptionBuilder {
 	return ob
 }
 
-// WithName adds the name of the log event.
+// WithName adds the name to the log event.
 func (ob *OptionBuilder) WithName(name string) *OptionBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		e.Name = name
@@ -36,7 +63,7 @@ func (ob *OptionBuilder) WithName(name string) *OptionBuilder {
 	return ob
 }
 
-// WithHttp adds the http attribute of the log event.
+// WithHttp adds the http attribute to the log event.
 func (ob *OptionBuilder) WithHttp(http Http) *OptionBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
@@ -47,7 +74,29 @@ func (ob *OptionBuilder) WithHttp(http Http) *OptionBuilder {
 	return ob
 }
 
-// WithDB adds the database attribute of the log event.
+// WithHttpRequest adds the http attribute from a http request to the log event.
+func (ob *OptionBuilder) WithHttpRequest(req *http.Request) *OptionBuilder {
+	ob.options = append(ob.options, func(e *Event) {
+		if e.Attributes == nil {
+			e.Attributes = &Attributes{}
+		}
+		e.Attributes.Http = newHttpFromRequest(req, nil)
+	})
+	return ob
+}
+
+// WithHttpResponse adds the http attribute from a http response to the log event.
+func (ob *OptionBuilder) WithHttpResponse(resp *http.Response) *OptionBuilder {
+	ob.options = append(ob.options, func(e *Event) {
+		if e.Attributes == nil {
+			e.Attributes = &Attributes{}
+		}
+		e.Attributes.Http = newHttpFromRequest(resp.Request, &resp.StatusCode)
+	})
+	return ob
+}
+
+// WithDB adds the database attribute to the log event.
 func (ob *OptionBuilder) WithDB(db DB) *OptionBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
@@ -58,7 +107,7 @@ func (ob *OptionBuilder) WithDB(db DB) *OptionBuilder {
 	return ob
 }
 
-// WithException adds the exception attribute of the log event.
+// WithException adds the exception attribute to the log event.
 func (ob *OptionBuilder) WithException(err Exception) *OptionBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
@@ -69,42 +118,56 @@ func (ob *OptionBuilder) WithException(err Exception) *OptionBuilder {
 	return ob
 }
 
-// With adds a custom option of the log event.
+// With adds a custom option to the log event.
 func With(o Option) *OptionBuilder {
 	ob := &OptionBuilder{}
 	ob.With(o)
 	return ob
 }
 
-// WithVisibility sets the visibility of the log event.
+// WithVisibility sets the visibility to the log event.
 func WithVisibility(vis bool) *OptionBuilder {
 	ob := &OptionBuilder{}
 	ob.WithVisibility(vis)
 	return ob
 }
 
-// WithName adds the name of the log event.
+// WithName adds the name to the log event.
 func WithName(name string) *OptionBuilder {
 	ob := &OptionBuilder{}
 	ob.WithName(name)
 	return ob
 }
 
-// WithHttp adds the http attribute of the log event.
+// WithHttp adds the http attribute to the log event.
 func WithHttp(http Http) *OptionBuilder {
 	ob := &OptionBuilder{}
 	ob.WithHttp(http)
 	return ob
 }
 
-// WithDB adds the database attribute of the log event.
+// WithHttpRequest adds the http attribute from a http request to the log event.
+func WithHttpRequest(req *http.Request) *OptionBuilder {
+	ob := &OptionBuilder{}
+	ob.WithHttpRequest(req)
+	return ob
+}
+
+// WithHttpResponse adds the http attribute from a http response to the log event.
+func WithHttpResponse(resp *http.Response) *OptionBuilder {
+	ob := &OptionBuilder{}
+	ob.WithHttpResponse(resp)
+	return ob
+}
+
+// WithDB adds the database attribute to the log event.
 func WithDB(db DB) *OptionBuilder {
 	ob := &OptionBuilder{}
 	ob.WithDB(db)
 	return ob
 }
 
-// WithException adds the exception attribute of the log event.
+// WithException adds the exception attribute to the log event.
 func WithException(err Exception) *OptionBuilder {
 	ob := &OptionBuilder{}
 	ob.WithException(err)

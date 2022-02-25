@@ -3,6 +3,7 @@ package structuredlog_test
 import (
 	"context"
 	log "github.com/d-velop/dvelop-sdk-go/structuredlog"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -76,6 +77,41 @@ func TestLogMessageWithHttp_Info_AddHttpPropertyAndWritesJSONToBuffer(t *testing
 	rec := initializeLogger(t)
 	log.WithHttp(log.Http{Method: "Get"}).Info(context.Background(), "Log message")
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"}}}\n")
+}
+
+func TestLogMessageWithHttpRequest_Info_AddHttpPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	req := httptest.NewRequest("GET", "https://www.example.com/path?q=param", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	log.WithHttpRequest(req).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"GET\",\"url\":\"https://www.example.com/path?q=param\",\"target\":\"/path?q=param\",\"host\":\"www.example.com\",\"scheme\":\"https\",\"route\":\"/path\",\"userAgent\":\"Mozilla/5.0\",\"clientIP\":\"192.0.2.1:1234\"}}}\n")
+}
+
+func TestLogMessageWithHttpRequestAndUserInUrl_Info_AddHttpPropertyHideUserAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	req := httptest.NewRequest("GET", "https://username:password@www.example.com/path?q=param", nil)
+	log.WithHttpRequest(req).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"GET\",\"url\":\"https://www.example.com/path?q=param\",\"target\":\"/path?q=param\",\"host\":\"www.example.com\",\"scheme\":\"https\",\"route\":\"/path\",\"clientIP\":\"192.0.2.1:1234\"}}}\n")
+}
+
+func TestLogMessageWithHttResponse_Info_AddHttpPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	req := httptest.NewRequest("GET", "https://www.example.com/path?q=param", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp := httptest.NewRecorder().Result()
+	resp.Request = req
+	log.WithHttpResponse(resp).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"GET\",\"statusCode\":200,\"url\":\"https://www.example.com/path?q=param\",\"target\":\"/path?q=param\",\"host\":\"www.example.com\",\"scheme\":\"https\",\"route\":\"/path\",\"userAgent\":\"Mozilla/5.0\",\"clientIP\":\"192.0.2.1:1234\"}}}\n")
+}
+
+func TestLogMessageWithHttpResponseAndUserInUrl_Info_AddHttpPropertyHideUserAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	req := httptest.NewRequest("GET", "https://username:password@www.example.com/", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp := httptest.NewRecorder().Result()
+	resp.Request = req
+	log.WithHttpResponse(resp).Info(context.Background(), "Log message")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"GET\",\"statusCode\":200,\"url\":\"https://www.example.com/\",\"target\":\"/\",\"host\":\"www.example.com\",\"scheme\":\"https\",\"route\":\"/\",\"userAgent\":\"Mozilla/5.0\",\"clientIP\":\"192.0.2.1:1234\"}}}\n")
 }
 
 func TestLogMessageWithDB_Info_AddDBPropertyAndWritesJSONToBuffer(t *testing.T) {
