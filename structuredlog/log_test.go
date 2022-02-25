@@ -126,19 +126,17 @@ func TestLogMessageWithCustomOutputFormatter_Info_WritesCustomFormatToBuffer(t *
 	rec.OutputShouldBe("This is a Log message with severity level 9.\n")
 }
 
-func logAsync(wg *sync.WaitGroup) {
-	defer wg.Done()
-	log.Info(context.Background(), "Log message")
-}
-
 func TestSeveralLogMessagesAtTheSameTime_Info_WritesJSONToBuffer(t *testing.T) {
 	rec := &outputRecorderSlow{initializeLogger(t)}
 	log.SetOutput(rec)
 	var wg sync.WaitGroup
 	wg.Add(3)
-	go logAsync(&wg)
-	go logAsync(&wg)
-	go logAsync(&wg)
+	for i := 0; i < 3; i++ {
+		go func() {
+			defer wg.Done()
+			log.Info(context.Background(), "Log message")
+		}()
+	}
 	wg.Wait()
 	rec.OutputShouldBe(fmt.Sprint("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n",
 		"{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\"}\n",
