@@ -17,7 +17,17 @@ type Option func(e *Event)
 func newHttpFromRequest(req *http.Request, sc *int) *Http {
 	url := req.URL.String()
 	if req.URL.User != nil {
-		url = strings.Replace(url, req.URL.User.String() + "@", "", -1)
+		url = strings.Replace(url, req.URL.User.String()+"@", "", -1)
+	}
+
+	ipAddress := req.RemoteAddr
+	fwdAddress := req.Header.Get("X-Forwarded-For")
+	if fwdAddress != "" {
+		ipAddress = fwdAddress
+		ips := strings.Split(fwdAddress, ", ")
+		if len(ips) > 1 {
+			ipAddress = ips[0]
+		}
 	}
 
 	var h = &Http{
@@ -28,7 +38,7 @@ func newHttpFromRequest(req *http.Request, sc *int) *Http {
 		Scheme:    req.URL.Scheme,
 		Route:     req.URL.Path,
 		UserAgent: req.UserAgent(),
-		ClientIP:  req.RemoteAddr,
+		ClientIP:  ipAddress,
 	}
 
 	if sc != nil {
