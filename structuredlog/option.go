@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type OptionBuilder struct {
+type LogBuilder struct {
 	options []Option
 }
 
@@ -49,13 +49,13 @@ func newHttpFromRequest(req *http.Request, sc *int) *Http {
 }
 
 // With adds a custom option to the log event.
-func (ob *OptionBuilder) With(o Option) *OptionBuilder {
+func (ob *LogBuilder) With(o Option) *LogBuilder {
 	ob.options = append(ob.options, o)
 	return ob
 }
 
 // WithVisibility sets the visibility to the log event.
-func (ob *OptionBuilder) WithVisibility(vis bool) *OptionBuilder {
+func (ob *LogBuilder) WithVisibility(vis bool) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if !vis {
 			var visInt = 0
@@ -66,7 +66,7 @@ func (ob *OptionBuilder) WithVisibility(vis bool) *OptionBuilder {
 }
 
 // WithName adds the name to the log event.
-func (ob *OptionBuilder) WithName(name string) *OptionBuilder {
+func (ob *LogBuilder) WithName(name string) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		e.Name = name
 	})
@@ -74,7 +74,7 @@ func (ob *OptionBuilder) WithName(name string) *OptionBuilder {
 }
 
 // WithHttp adds the http attribute to the log event.
-func (ob *OptionBuilder) WithHttp(http Http) *OptionBuilder {
+func (ob *LogBuilder) WithHttp(http Http) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
@@ -85,7 +85,7 @@ func (ob *OptionBuilder) WithHttp(http Http) *OptionBuilder {
 }
 
 // WithHttpRequest adds the http attribute from a http request to the log event.
-func (ob *OptionBuilder) WithHttpRequest(req *http.Request) *OptionBuilder {
+func (ob *LogBuilder) WithHttpRequest(req *http.Request) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
@@ -96,7 +96,7 @@ func (ob *OptionBuilder) WithHttpRequest(req *http.Request) *OptionBuilder {
 }
 
 // WithHttpResponse adds the http attribute from a http response to the log event.
-func (ob *OptionBuilder) WithHttpResponse(resp *http.Response) *OptionBuilder {
+func (ob *LogBuilder) WithHttpResponse(resp *http.Response) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
@@ -107,7 +107,7 @@ func (ob *OptionBuilder) WithHttpResponse(resp *http.Response) *OptionBuilder {
 }
 
 // WithDB adds the database attribute to the log event.
-func (ob *OptionBuilder) WithDB(db DB) *OptionBuilder {
+func (ob *LogBuilder) WithDB(db DB) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
@@ -118,7 +118,7 @@ func (ob *OptionBuilder) WithDB(db DB) *OptionBuilder {
 }
 
 // WithException adds the exception attribute to the log event.
-func (ob *OptionBuilder) WithException(err Exception) *OptionBuilder {
+func (ob *LogBuilder) WithException(err Exception) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
@@ -129,87 +129,87 @@ func (ob *OptionBuilder) WithException(err Exception) *OptionBuilder {
 }
 
 // With adds a custom option to the log event.
-func With(o Option) *OptionBuilder {
-	ob := &OptionBuilder{}
+func With(o Option) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.With(o)
 	return ob
 }
 
 // WithVisibility sets the visibility to the log event.
-func WithVisibility(vis bool) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithVisibility(vis bool) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithVisibility(vis)
 	return ob
 }
 
 // WithName adds the name to the log event.
-func WithName(name string) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithName(name string) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithName(name)
 	return ob
 }
 
 // WithHttp adds the http attribute to the log event.
-func WithHttp(http Http) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithHttp(http Http) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithHttp(http)
 	return ob
 }
 
 // WithHttpRequest adds the http attribute from a http request to the log event.
-func WithHttpRequest(req *http.Request) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithHttpRequest(req *http.Request) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithHttpRequest(req)
 	return ob
 }
 
 // WithHttpResponse adds the http attribute from a http response to the log event.
-func WithHttpResponse(resp *http.Response) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithHttpResponse(resp *http.Response) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithHttpResponse(resp)
 	return ob
 }
 
 // WithDB adds the database attribute to the log event.
-func WithDB(db DB) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithDB(db DB) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithDB(db)
 	return ob
 }
 
 // WithException adds the exception attribute to the log event.
-func WithException(err Exception) *OptionBuilder {
-	ob := &OptionBuilder{}
+func WithException(err Exception) *LogBuilder {
+	ob := &LogBuilder{}
 	ob.WithException(err)
 	return ob
 }
 
 // Debug is equivalent to log.StdDebug.Print()
-func (ob *OptionBuilder) Debug(ctx context.Context, v ...interface{}) {
+func (ob *LogBuilder) Debug(ctx context.Context, v ...interface{}) {
 	std.output(ctx, SeverityDebug, fmt.Sprint(v...), ob.options)
 }
 
 // Debugf is equivalent to log.StdDebug.Printf()
-func (ob *OptionBuilder) Debugf(ctx context.Context, format string, v ...interface{}) {
+func (ob *LogBuilder) Debugf(ctx context.Context, format string, v ...interface{}) {
 	std.output(ctx, SeverityDebug, fmt.Sprintf(format, v...), ob.options)
 }
 
 // Info is equivalent to log.StdInfo.Print()
-func (ob *OptionBuilder) Info(ctx context.Context, v ...interface{}) {
+func (ob *LogBuilder) Info(ctx context.Context, v ...interface{}) {
 	std.output(ctx, SeverityInfo, fmt.Sprint(v...), ob.options)
 }
 
 // Infof is equivalent to log.StdInfo.Printf()
-func (ob *OptionBuilder) Infof(ctx context.Context, format string, v ...interface{}) {
+func (ob *LogBuilder) Infof(ctx context.Context, format string, v ...interface{}) {
 	std.output(ctx, SeverityInfo, fmt.Sprintf(format, v...), ob.options)
 }
 
 // Error is equivalent to log.StdError.Print()
-func (ob *OptionBuilder) Error(ctx context.Context, v ...interface{}) {
+func (ob *LogBuilder) Error(ctx context.Context, v ...interface{}) {
 	std.output(ctx, SeverityError, fmt.Sprint(v...), ob.options)
 }
 
 // Errorf is equivalent to log.StdError.Printf()
-func (ob *OptionBuilder) Errorf(ctx context.Context, format string, v ...interface{}) {
+func (ob *LogBuilder) Errorf(ctx context.Context, format string, v ...interface{}) {
 	std.output(ctx, SeverityError, fmt.Sprintf(format, v...), ob.options)
 }
