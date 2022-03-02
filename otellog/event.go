@@ -1,4 +1,4 @@
-package structuredlog
+package otellog
 
 import (
 	"encoding/json"

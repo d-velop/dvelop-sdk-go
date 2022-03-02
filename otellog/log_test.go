@@ -1,10 +1,10 @@
-package structuredlog_test
+package otellog_test
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	log "github.com/d-velop/dvelop-sdk-go/structuredlog"
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"sync"
 	"testing"
 	"time"

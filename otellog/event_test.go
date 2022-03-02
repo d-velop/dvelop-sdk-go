@@ -1,8 +1,8 @@
-package structuredlog_test
+package otellog_test
 
 import (
 	"encoding/json"
-	log "github.com/d-velop/dvelop-sdk-go/structuredlog"
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"net/http"
 	"strings"
 	"testing"
