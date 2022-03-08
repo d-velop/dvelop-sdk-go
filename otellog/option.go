@@ -13,8 +13,8 @@ type LogBuilder struct {
 
 type Option func(e *Event)
 
-// newHttpFromRequest creates a http attribute from http request.
-func newHttpFromRequest(req *http.Request, sc *int) *Http {
+// enrichHttpAttributeWithRequest enriches http attribute with http request.
+func enrichHttpAttributeWithRequest(h *Http, req *http.Request) *Http {
 	url := req.URL.String()
 	if req.URL.User != nil {
 		url = strings.Replace(url, req.URL.User.String()+"@", "", -1)
@@ -30,21 +30,14 @@ func newHttpFromRequest(req *http.Request, sc *int) *Http {
 		}
 	}
 
-	var h = &Http{
-		Method:    req.Method,
-		URL:       url,
-		Target:    req.URL.RequestURI(),
-		Host:      req.URL.Hostname(),
-		Scheme:    req.URL.Scheme,
-		Route:     req.URL.Path,
-		UserAgent: req.UserAgent(),
-		ClientIP:  ipAddress,
-	}
-
-	if sc != nil {
-		h.StatusCode = uint16(*sc)
-	}
-
+	h.Method = req.Method
+	h.URL = url
+	h.Target = req.URL.RequestURI()
+	h.Host = req.URL.Hostname()
+	h.Scheme = req.URL.Scheme
+	h.Route = req.URL.Path
+	h.UserAgent = req.UserAgent()
+	h.ClientIP = ipAddress
 	return h
 }
 
@@ -90,7 +83,10 @@ func (ob *LogBuilder) WithHttpRequest(req *http.Request) *LogBuilder {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
 		}
-		e.Attributes.Http = newHttpFromRequest(req, nil)
+		if e.Attributes.Http == nil {
+			e.Attributes.Http = &Http{}
+		}
+		enrichHttpAttributeWithRequest(e.Attributes.Http, req)
 	})
 	return ob
 }
@@ -101,7 +97,25 @@ func (ob *LogBuilder) WithHttpResponse(resp *http.Response) *LogBuilder {
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
 		}
-		e.Attributes.Http = newHttpFromRequest(resp.Request, &resp.StatusCode)
+		if e.Attributes.Http == nil {
+			e.Attributes.Http = &Http{}
+		}
+		enrichHttpAttributeWithRequest(e.Attributes.Http, resp.Request)
+		e.Attributes.Http.StatusCode = uint16(resp.StatusCode)
+	})
+	return ob
+}
+
+// WithHttpStatusCode adds the http status code to the log event.
+func (ob *LogBuilder) WithHttpStatusCode(status int) *LogBuilder {
+	ob.options = append(ob.options, func(e *Event) {
+		if e.Attributes == nil {
+			e.Attributes = &Attributes{}
+		}
+		if e.Attributes.Http == nil {
+			e.Attributes.Http = &Http{}
+		}
+		e.Attributes.Http.StatusCode = uint16(status)
 	})
 	return ob
 }
@@ -160,6 +174,13 @@ func WithHttp(http Http) *LogBuilder {
 func WithHttpRequest(req *http.Request) *LogBuilder {
 	ob := &LogBuilder{}
 	ob.WithHttpRequest(req)
+	return ob
+}
+
+// WithHttpStatusCode adds the http status code to the log event.
+func WithHttpStatusCode(status int) *LogBuilder {
+	ob := &LogBuilder{}
+	ob.WithHttpStatusCode(status)
 	return ob
 }
 

@@ -3,6 +3,7 @@ package otellog_test
 import (
 	"context"
 	log "github.com/d-velop/dvelop-sdk-go/otellog"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 )
@@ -168,6 +169,24 @@ func TestLogMessageWithHttpResponseAndForwardedHeader_Info_AddHttpPropertyAndWri
 	log.WithHttpResponse(resp).Info(context.Background(), "Log message")
 
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"GET\",\"statusCode\":200,\"url\":\"https://www.example.com/path?q=param\",\"target\":\"/path?q=param\",\"host\":\"www.example.com\",\"scheme\":\"https\",\"route\":\"/path\",\"userAgent\":\"Mozilla/5.0\",\"clientIP\":\"client\"}}}\n")
+}
+
+func TestLogMessageWithHttpStatusCodeWithoutRequest_AddHttpPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+
+	log.WithHttpStatusCode(http.StatusMethodNotAllowed).Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"statusCode\":405}}}\n")
+}
+
+func TestLogMessageWithHttpStatusCodeWithRequest_AddHttpPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	req := httptest.NewRequest("GET", "https://www.example.com/path?q=param", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+
+	log.WithHttpStatusCode(http.StatusMethodNotAllowed).WithHttpRequest(req).Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"GET\",\"statusCode\":405,\"url\":\"https://www.example.com/path?q=param\",\"target\":\"/path?q=param\",\"host\":\"www.example.com\",\"scheme\":\"https\",\"route\":\"/path\",\"userAgent\":\"Mozilla/5.0\",\"clientIP\":\"192.0.2.1:1234\"}}}\n")
 }
 
 func TestLogMessageWithDB_Info_AddDBPropertyAndWritesJSONToBuffer(t *testing.T) {
