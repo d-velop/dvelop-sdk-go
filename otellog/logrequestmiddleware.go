@@ -18,6 +18,7 @@ func newLogResponseWriter(rw http.ResponseWriter) *logResponseWriter {
 	return &logResponseWriter{rw, http.StatusOK}
 }
 
+// LogHttpRequest logs information about the request and response using the provided otel log function
 func LogHttpRequest() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
