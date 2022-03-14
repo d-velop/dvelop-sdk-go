@@ -22,7 +22,7 @@ func TestShouldCallInnerHandler(t *testing.T) {
 	}
 }
 
-func TestMissingTraceParentHeader_GeneratesNewTraceIdAndNewSpanId(t *testing.T) {
+func TestMissingTraceparentHeader_GeneratesNewTraceIdAndNewSpanId(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/sub", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +39,7 @@ func TestMissingTraceParentHeader_GeneratesNewTraceIdAndNewSpanId(t *testing.T) 
 	}
 }
 
-func TestInvalidTraceParentHeader_GeneratesNewTraceIdAndNewSpanId(t *testing.T) {
+func TestInvalidTraceparentHeader_GeneratesNewTraceIdAndNewSpanId(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/sub", nil)
 	req.Header.Set("traceparent", "invalid")
 	if err != nil {
@@ -57,7 +57,7 @@ func TestInvalidTraceParentHeader_GeneratesNewTraceIdAndNewSpanId(t *testing.T) 
 	}
 }
 
-func TestTraceParentHeader_SetGivenTraceIdToCtxAndGeneratesNewSpanId(t *testing.T) {
+func TestTraceparentHeader_SetGivenTraceIdToCtxAndGeneratesNewSpanId(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/sub", nil)
 	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 	if err != nil {
@@ -78,7 +78,7 @@ func TestTraceParentHeader_SetGivenTraceIdToCtxAndGeneratesNewSpanId(t *testing.
 	}
 }
 
-func TestTraceParentHeader_GetSameTraceParentWithNewSpanIdAndFlags1(t *testing.T) {
+func TestTraceparentHeader_GetSameTraceparentWithNewSpanIdAndFlags1(t *testing.T) {
 	req, err := http.NewRequest("GET", "/myresource/sub", nil)
 	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00")
 	if err != nil {
@@ -88,14 +88,14 @@ func TestTraceParentHeader_GetSameTraceParentWithNewSpanIdAndFlags1(t *testing.T
 
 	tracecontext.AddToCtx()(&innerHandler).ServeHTTP(httptest.NewRecorder(), req)
 
-	if err := innerHandler.assertTraceParentIs(fmt.Sprintf("00-4bf92f3577b34da6a3ce929d0e0e4736-%v-01", innerHandler.spanId)); err != nil {
+	if err := innerHandler.assertTraceparentIs(fmt.Sprintf("00-4bf92f3577b34da6a3ce929d0e0e4736-%v-01", innerHandler.spanId)); err != nil {
 		t.Error(err)
 	}
 }
 
 type handlerSpy struct {
 	hasBeenCalled bool
-	traceParent   string
+	traceparent   string
 	traceId       string
 	spanId        string
 }
@@ -104,12 +104,12 @@ func (spy *handlerSpy) ServeHTTP(_ http.ResponseWriter, r *http.Request) {
 	spy.hasBeenCalled = true
 	spy.traceId, _ = tracecontext.TraceIdFromCtx(r.Context())
 	spy.spanId, _ = tracecontext.SpanIdFromCtx(r.Context())
-	spy.traceParent, _ = tracecontext.TraceParentFromCtx(r.Context())
+	spy.traceparent, _ = tracecontext.TraceparentFromCtx(r.Context())
 }
 
-func (spy *handlerSpy) assertTraceParentIs(expected string) error {
-	if spy.traceParent != expected {
-		return fmt.Errorf("handler set wrong traceParent on context: got %v want %v", spy.traceParent, expected)
+func (spy *handlerSpy) assertTraceparentIs(expected string) error {
+	if spy.traceparent != expected {
+		return fmt.Errorf("handler set wrong traceparent on context: got %v want %v", spy.traceparent, expected)
 	}
 	return nil
 }

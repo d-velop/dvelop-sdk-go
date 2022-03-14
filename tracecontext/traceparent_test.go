@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestValidTraceIdAndValidParentId_NewTraceParent_ReturnsTraceParentWithVersion0AndFlags1(t *testing.T) {
-	tp, err := tracecontext.NewTraceParent("4bf92f3577b34da6a3ce929d0e0e4736", "00f067aa0ba902b7")
+func TestValidTraceIdAndValidParentId_NewTraceparent_ReturnsTraceparentWithVersion0AndFlags1(t *testing.T) {
+	tp, err := tracecontext.NewTraceparent("4bf92f3577b34da6a3ce929d0e0e4736", "00f067aa0ba902b7")
 
 	if err != nil {
-		t.Errorf("TraceParent cannot be created: %v", err)
+		t.Errorf("Traceparent cannot be created: %v", err)
 	}
 
 	assertString(t, tp.TraceId(), "4bf92f3577b34da6a3ce929d0e0e4736")
@@ -17,39 +17,39 @@ func TestValidTraceIdAndValidParentId_NewTraceParent_ReturnsTraceParentWithVersi
 	assertString(t, tp.String(), "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 }
 
-func TestInvalidTraceIdAndValidParentId_NewTraceParent_ReturnsTraceIdError(t *testing.T) {
-	tp, err := tracecontext.NewTraceParent("00f067aa0ba902b7", "00f067aa0ba902b7")
+func TestInvalidTraceIdAndValidParentId_NewTraceparent_ReturnsTraceIdError(t *testing.T) {
+	tp, err := tracecontext.NewTraceparent("00f067aa0ba902b7", "00f067aa0ba902b7")
 
 	if err == nil {
-		t.Errorf("TraceParent should throw an error")
+		t.Errorf("Traceparent should throw an error")
 	}
 
 	if tp != nil {
-		t.Errorf("TraceParent should be null")
+		t.Errorf("Traceparent should be null")
 	}
 
 	assertString(t, err.Error(), "invalid trace-id")
 }
 
-func TestValidTraceIdAndInvalidParentId_NewTraceParent_ReturnsParentIdError(t *testing.T) {
-	tp, err := tracecontext.NewTraceParent("4bf92f3577b34da6a3ce929d0e0e4736", "4bf92f3577b34da6a3ce929d0e0e4736")
+func TestValidTraceIdAndInvalidParentId_NewTraceparent_ReturnsParentIdError(t *testing.T) {
+	tp, err := tracecontext.NewTraceparent("4bf92f3577b34da6a3ce929d0e0e4736", "4bf92f3577b34da6a3ce929d0e0e4736")
 
 	if err == nil {
-		t.Errorf("TraceParent should throw an error")
+		t.Errorf("Traceparent should throw an error")
 	}
 
 	if tp != nil {
-		t.Errorf("TraceParent should be null")
+		t.Errorf("Traceparent should be null")
 	}
 
 	assertString(t, err.Error(), "invalid parent-id")
 }
 
-func TestValidTraceParent_ParseTraceParent_ReturnsTraceParentWithVersion0AndFlags1(t *testing.T) {
-	tp, err := tracecontext.ParseTraceParent("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+func TestValidTraceparent_ParseTraceparent_ReturnsTraceparentWithVersion0AndFlags1(t *testing.T) {
+	tp, err := tracecontext.ParseTraceparent("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 
 	if err != nil {
-		t.Errorf("TraceParent cannot be created: %v", err)
+		t.Errorf("Traceparent cannot be created: %v", err)
 	}
 
 	assertString(t, tp.TraceId(), "4bf92f3577b34da6a3ce929d0e0e4736")
@@ -57,57 +57,57 @@ func TestValidTraceParent_ParseTraceParent_ReturnsTraceParentWithVersion0AndFlag
 	assertString(t, tp.String(), "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 }
 
-func TestTraceParentWithInvalidVersion_ParseTraceParent_ReturnsVersionError(t *testing.T) {
-	tp, err := tracecontext.ParseTraceParent("0-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+func TestTraceparentWithInvalidVersion_ParseTraceparent_ReturnsVersionError(t *testing.T) {
+	tp, err := tracecontext.ParseTraceparent("0-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 
 	if err == nil {
-		t.Errorf("TraceParent should throw an error")
+		t.Errorf("Traceparent should throw an error")
 	}
 
 	if tp != nil {
-		t.Errorf("TraceParent should be null")
+		t.Errorf("Traceparent should be null")
 	}
 
 	assertString(t, err.Error(), "invalid version")
 }
 
-func TestTraceParentWithInvalidTraceId_ParseTraceParent_ReturnsTraceIdError(t *testing.T) {
-	tp, err := tracecontext.ParseTraceParent("00-00f067aa0ba902b7-00f067aa0ba902b7-01")
+func TestTraceparentWithInvalidTraceId_ParseTraceparent_ReturnsTraceIdError(t *testing.T) {
+	tp, err := tracecontext.ParseTraceparent("00-00f067aa0ba902b7-00f067aa0ba902b7-01")
 
 	if err == nil {
-		t.Errorf("TraceParent should throw an error")
+		t.Errorf("Traceparent should throw an error")
 	}
 
 	if tp != nil {
-		t.Errorf("TraceParent should be null")
+		t.Errorf("Traceparent should be null")
 	}
 
 	assertString(t, err.Error(), "invalid trace-id")
 }
 
-func TestTraceParentWithInvalidParentId_ParseTraceParent_ReturnsParentIdError(t *testing.T) {
-	tp, err := tracecontext.ParseTraceParent("00-4bf92f3577b34da6a3ce929d0e0e4736-4bf92f3577b34da6a3ce929d0e0e4736-01")
+func TestTraceparentWithInvalidParentId_ParseTraceparent_ReturnsParentIdError(t *testing.T) {
+	tp, err := tracecontext.ParseTraceparent("00-4bf92f3577b34da6a3ce929d0e0e4736-4bf92f3577b34da6a3ce929d0e0e4736-01")
 
 	if err == nil {
-		t.Errorf("TraceParent should throw an error")
+		t.Errorf("Traceparent should throw an error")
 	}
 
 	if tp != nil {
-		t.Errorf("TraceParent should be null")
+		t.Errorf("Traceparent should be null")
 	}
 
 	assertString(t, err.Error(), "invalid parent-id")
 }
 
-func TestTraceParentWithInvalidFlags_ParseTraceParent_ReturnsFlagsError(t *testing.T) {
-	tp, err := tracecontext.ParseTraceParent("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0")
+func TestTraceparentWithInvalidFlags_ParseTraceparent_ReturnsFlagsError(t *testing.T) {
+	tp, err := tracecontext.ParseTraceparent("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0")
 
 	if err == nil {
-		t.Errorf("TraceParent should throw an error")
+		t.Errorf("Traceparent should throw an error")
 	}
 
 	if tp != nil {
-		t.Errorf("TraceParent should be null")
+		t.Errorf("Traceparent should be null")
 	}
 
 	assertString(t, err.Error(), "invalid trace-flags")

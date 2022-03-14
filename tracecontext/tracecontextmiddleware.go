@@ -17,7 +17,7 @@ type contextKey string
 
 const traceIdCtxKey = contextKey("traceId")
 const spanIdCtxKey = contextKey("spanId")
-const traceParentHeader = "traceparent"
+const traceparentHeader = "traceparent"
 
 // AddToCtx reads the http header traceparent from the current request
 // and stores the trace-id in the context. The span-id is regenerated on request.
@@ -33,8 +33,8 @@ func AddToCtx() func(http.Handler) http.Handler {
 	}
 }
 
-// TraceParentFromCtx reads the current trace-id and span-id from the context and builds the traceparent header value.
-func TraceParentFromCtx(ctx context.Context) (string, error) {
+// TraceparentFromCtx reads the current trace-id and span-id from the context and builds the traceparent header value.
+func TraceparentFromCtx(ctx context.Context) (string, error) {
 	traceId, err := TraceIdFromCtx(ctx)
 	if err != nil {
 		return "", err
@@ -44,7 +44,7 @@ func TraceParentFromCtx(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	tp, err := NewTraceParent(traceId, spanId)
+	tp, err := NewTraceparent(traceId, spanId)
 	if err != nil {
 		return "", err
 	}
@@ -71,8 +71,8 @@ func SpanIdFromCtx(ctx context.Context) (string, error) {
 }
 
 func withTraceIdCtx(parent context.Context, header http.Header) context.Context {
-	if s := header.Get(traceParentHeader); s != "" {
-		if t, err := ParseTraceParent(s); err == nil {
+	if s := header.Get(traceparentHeader); s != "" {
+		if t, err := ParseTraceparent(s); err == nil {
 			return context.WithValue(parent, traceIdCtxKey, t.TraceId())
 		}
 	}
