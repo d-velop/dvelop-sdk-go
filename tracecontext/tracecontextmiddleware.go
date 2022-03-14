@@ -1,3 +1,10 @@
+// Package tracecontext contains functions to handle a trace context for the current request.
+//
+// A trace context is based on the W3C trace-context specification available at https://w3c.github.io/trace-context/.
+//
+// Logstatements should log the trace-id and span-id in every statement to correlate
+// the statements to a specific request. This simplifies the tracking of
+// a request through a system which serves multiple concurrent requests.
 package tracecontext
 
 import (
@@ -12,6 +19,9 @@ const traceIdCtxKey = contextKey("traceId")
 const spanIdCtxKey = contextKey("spanId")
 const traceParentHeader = "traceparent"
 
+// AddToCtx reads the http header traceparent from the current request
+// and stores the trace-id in the context. The span-id is regenerated on request.
+// If the request doesn't have an existing trace-id a new one is generated.
 func AddToCtx() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -23,6 +33,7 @@ func AddToCtx() func(http.Handler) http.Handler {
 	}
 }
 
+// TraceParentFromCtx reads the current trace-id and span-id from the context and builds the traceparent header value.
 func TraceParentFromCtx(ctx context.Context) (string, error) {
 	traceId, err := TraceIdFromCtx(ctx)
 	if err != nil {
@@ -41,6 +52,7 @@ func TraceParentFromCtx(ctx context.Context) (string, error) {
 	return tp.String(), nil
 }
 
+// TraceIdFromCtx reads the current trace-id from the context.
 func TraceIdFromCtx(ctx context.Context) (string, error) {
 	traceId, ok := ctx.Value(traceIdCtxKey).(string)
 	if !ok {
@@ -49,6 +61,7 @@ func TraceIdFromCtx(ctx context.Context) (string, error) {
 	return traceId, nil
 }
 
+// SpanIdFromCtx reads the current span-id from the context.
 func SpanIdFromCtx(ctx context.Context) (string, error) {
 	spanId, ok := ctx.Value(spanIdCtxKey).(string)
 	if !ok {

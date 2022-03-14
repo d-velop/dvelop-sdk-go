@@ -9,7 +9,7 @@ import (
 
 // TraceParent defines the header used for distributed tracing. A Traceparent is
 // based on the W3C trace-context specification available at
-// https://w3c.github.io/trace-context/#version.
+// https://w3c.github.io/trace-context/#traceparent-header.
 type TraceParent struct {
 	version    byte
 	traceId    [16]byte
