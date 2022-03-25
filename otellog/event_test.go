@@ -2,11 +2,12 @@ package otellog_test
 
 import (
 	"encoding/json"
-	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 )
 
 func TestEventWithStringBody_Marshal_BodyPropertyIsString(t *testing.T) {
@@ -110,11 +111,11 @@ func TestJsonStringWithDurationInMilliseconds_Unmarshal_ProducesCorrectDuration(
 			}
        	}
 	}`), &e)
-	if e.Attributes.Http.Server.Duration != time.Millisecond*5000 {
-		t.Errorf("Duration has wrong value\ngot   :'%v'\nwanted:'%v'", e.Attributes.Http.Server.Duration, time.Millisecond*5000)
+	if e.Attributes["http"].(*log.Http).Server.Duration != time.Millisecond*5000 {
+		t.Errorf("Duration has wrong value\ngot   :'%v'\nwanted:'%v'", e.Attributes["http"].(*log.Http).Server.Duration, time.Millisecond*5000)
 	}
-	if e.Attributes.Http.Client.Duration != time.Millisecond*2000 {
-		t.Errorf("Duration has wrong value\ngot   :'%v'\nwanted:'%v'", e.Attributes.Http.Client.Duration, time.Millisecond*2000)
+	if e.Attributes["http"].(*log.Http).Client.Duration != time.Millisecond*2000 {
+		t.Errorf("Duration has wrong value\ngot   :'%v'\nwanted:'%v'", e.Attributes["http"].(*log.Http).Client.Duration, time.Millisecond*2000)
 	}
 }
 
@@ -135,8 +136,8 @@ func TestEventWithAllProperties_Marshal_JsonObjectWithAllProperties(t *testing.T
 				Instance: "f23c72a0497e4b9d8ab786a28b6ab37e",
 			},
 		},
-		Attributes: &log.Attributes{
-			Http: &log.Http{
+		Attributes: map[string]interface{}{
+			"http": &log.Http{
 				Method:     http.MethodPost,
 				StatusCode: http.StatusInternalServerError,
 				URL:        "http://acme.server.invalid/vacationprocess/vacations/1",
@@ -153,12 +154,12 @@ func TestEventWithAllProperties_Marshal_JsonObjectWithAllProperties(t *testing.T
 					Duration: 2000 * time.Millisecond,
 				},
 			},
-			DB: &log.DB{
+			"db": &log.DB{
 				Name:      "customerdb",
 				Statement: "SELECT * FROM wuser_table; SET mykey 'WuValue'",
 				Operation: "SELECT",
 			},
-			Exception: &log.Exception{
+			"exception": &log.Exception{
 				Type:       "java.net.ConnectException",
 				Message:    "Division by zero",
 				Stacktrace: "a stacktrace",

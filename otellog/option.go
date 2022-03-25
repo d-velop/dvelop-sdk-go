@@ -70,9 +70,9 @@ func (ob *LogBuilder) WithName(name string) *LogBuilder {
 func (ob *LogBuilder) WithHttp(http Http) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
-			e.Attributes = &Attributes{}
+			e.Attributes = make(map[string]interface{})
 		}
-		e.Attributes.Http = &http
+		e.Attributes["http"] = &http
 	})
 	return ob
 }
@@ -81,12 +81,12 @@ func (ob *LogBuilder) WithHttp(http Http) *LogBuilder {
 func (ob *LogBuilder) WithHttpRequest(req *http.Request) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
-			e.Attributes = &Attributes{}
+			e.Attributes = make(map[string]interface{})
 		}
-		if e.Attributes.Http == nil {
-			e.Attributes.Http = &Http{}
+		if e.Attributes["http"] == nil {
+			e.Attributes["http"] = &Http{}
 		}
-		enrichHttpAttributeWithRequest(e.Attributes.Http, req)
+		enrichHttpAttributeWithRequest(e.Attributes["http"].(*Http), req)
 	})
 	return ob
 }
@@ -95,13 +95,13 @@ func (ob *LogBuilder) WithHttpRequest(req *http.Request) *LogBuilder {
 func (ob *LogBuilder) WithHttpResponse(resp *http.Response) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
-			e.Attributes = &Attributes{}
+			e.Attributes = make(map[string]interface{})
 		}
-		if e.Attributes.Http == nil {
-			e.Attributes.Http = &Http{}
+		if e.Attributes["http"] == nil {
+			e.Attributes["http"] = &Http{}
 		}
-		enrichHttpAttributeWithRequest(e.Attributes.Http, resp.Request)
-		e.Attributes.Http.StatusCode = uint16(resp.StatusCode)
+		enrichHttpAttributeWithRequest(e.Attributes["http"].(*Http), resp.Request)
+		e.Attributes["http"].(*Http).StatusCode = uint16(resp.StatusCode)
 	})
 	return ob
 }
@@ -110,12 +110,12 @@ func (ob *LogBuilder) WithHttpResponse(resp *http.Response) *LogBuilder {
 func (ob *LogBuilder) WithHttpStatusCode(status int) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
-			e.Attributes = &Attributes{}
+			e.Attributes = make(map[string]interface{})
 		}
-		if e.Attributes.Http == nil {
-			e.Attributes.Http = &Http{}
+		if e.Attributes["http"] == nil {
+			e.Attributes["http"] = &Http{}
 		}
-		e.Attributes.Http.StatusCode = uint16(status)
+		e.Attributes["http"].(*Http).StatusCode = uint16(status)
 	})
 	return ob
 }
@@ -124,9 +124,9 @@ func (ob *LogBuilder) WithHttpStatusCode(status int) *LogBuilder {
 func (ob *LogBuilder) WithDB(db DB) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
-			e.Attributes = &Attributes{}
+			e.Attributes = make(map[string]interface{})
 		}
-		e.Attributes.DB = &db
+		e.Attributes["db"] = &db
 	})
 	return ob
 }
@@ -135,9 +135,9 @@ func (ob *LogBuilder) WithDB(db DB) *LogBuilder {
 func (ob *LogBuilder) WithException(err Exception) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
 		if e.Attributes == nil {
-			e.Attributes = &Attributes{}
+			e.Attributes = make(map[string]interface{})
 		}
-		e.Attributes.Exception = &err
+		e.Attributes["exception"] = &err
 	})
 	return ob
 }

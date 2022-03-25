@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"sync"
 	"testing"
 	"time"
+
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 )
 
 type outputRecorder struct {

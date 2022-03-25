@@ -7,16 +7,16 @@ import (
 
 // An Event represents a structured logeevent inspired by the semantic model of OTEL (https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/logs/data-model.md)
 type Event struct {
-	Time       *time.Time  `json:"time,omitempty"`  // Time when the event occurred measured by the origin clock, normalized to UTC.
-	Severity   Severity    `json:"sev,omitempty"`   // Numerical value of the severity cf. Severity constants like SeverityInfo for possible values and their semantics
-	Name       string      `json:"name,omitempty"`  // Short event identifier that does not contain varying parts. Name describes what happened (e.g. "ProcessStarted"). Recommended to be no longer than 50 characters. Not guaranteed to be unique in any way. Typically used for filtering and grouping purposes in backends. Can be used to identify domain events like FeaturesRequested or UserLoggedIn (cf. example).
-	Body       interface{} `json:"body,omitempty"`  // A value containing the body of the log record. Can be for example a human-readable string message (including multi-line) describing the event in a free form or it can be a structured data composed of arrays and maps of other values. Can vary for each occurrence of the event coming from the same source.
-	TenantId   string      `json:"tn,omitempty"`    // ID of the tenant to which this event belongs.
-	TraceId    string      `json:"trace,omitempty"` // Request trace-id as defined in W3C Trace Context (https://www.w3.org/TR/trace-context/#trace-id) specification. That is the ID of the whole trace forest used to uniquely identify a distributed trace through a system.
-	SpanId     string      `json:"span,omitempty"`  // span-id. Can be set for logs that are part of a particular processing span. A span (https://opentracing.io/docs/overview/spans/) is the primary building block of a distributed trace, representing an individual unit of work done in a distributed system.
-	Resource   *Resource   `json:"res,omitempty"`   // Describes the source of the log. Multiple occurrences of events coming from the same event source can happen across time and they all have the same value of Resource. Can contain for example information about the application that emits the record or about the infrastructure where the application runs.
-	Attributes *Attributes `json:"attr,omitempty"`  // Additional information about the specific event occurrence. Unlike the Resource field, which is fixed for a particular source, Attributes can vary for each occurrence of the event coming from the same source. Can contain information about the request context (other than TraceId/SpanId).
-	Visibility *int        `json:"vis,omitempty"`   // Specifies if the logstatement is visible for tenant owner / customer. For now possible values are 1: true 0: false	1 is the default value, that is statements are visible if not explicitly denied by setting this value to 0
+	Time       *time.Time             `json:"time,omitempty"`  // Time when the event occurred measured by the origin clock, normalized to UTC.
+	Severity   Severity               `json:"sev,omitempty"`   // Numerical value of the severity cf. Severity constants like SeverityInfo for possible values and their semantics
+	Name       string                 `json:"name,omitempty"`  // Short event identifier that does not contain varying parts. Name describes what happened (e.g. "ProcessStarted"). Recommended to be no longer than 50 characters. Not guaranteed to be unique in any way. Typically used for filtering and grouping purposes in backends. Can be used to identify domain events like FeaturesRequested or UserLoggedIn (cf. example).
+	Body       interface{}            `json:"body,omitempty"`  // A value containing the body of the log record. Can be for example a human-readable string message (including multi-line) describing the event in a free form or it can be a structured data composed of arrays and maps of other values. Can vary for each occurrence of the event coming from the same source.
+	TenantId   string                 `json:"tn,omitempty"`    // ID of the tenant to which this event belongs.
+	TraceId    string                 `json:"trace,omitempty"` // Request trace-id as defined in W3C Trace Context (https://www.w3.org/TR/trace-context/#trace-id) specification. That is the ID of the whole trace forest used to uniquely identify a distributed trace through a system.
+	SpanId     string                 `json:"span,omitempty"`  // span-id. Can be set for logs that are part of a particular processing span. A span (https://opentracing.io/docs/overview/spans/) is the primary building block of a distributed trace, representing an individual unit of work done in a distributed system.
+	Resource   *Resource              `json:"res,omitempty"`   // Describes the source of the log. Multiple occurrences of events coming from the same event source can happen across time and they all have the same value of Resource. Can contain for example information about the application that emits the record or about the infrastructure where the application runs.
+	Attributes map[string]interface{} `json:"attr,omitempty"`  // Additional information about the specific event occurrence. Unlike the Resource field, which is fixed for a particular source, Attributes can vary for each occurrence of the event coming from the same source. Can contain information about the request context (other than TraceId/SpanId).
+	Visibility *int                   `json:"vis,omitempty"`   // Specifies if the logstatement is visible for tenant owner / customer. For now possible values are 1: true 0: false	1 is the default value, that is statements are visible if not explicitly denied by setting this value to 0
 }
 
 // A Resource describes the source of the log. Multiple occurrences of events coming from the same event source can happen across time and they all have the same value of res. Can contain for example information about the application that emits the record or about the infrastructure where the application runs.
@@ -31,14 +31,7 @@ type Service struct {
 	Instance string `json:"inst,omitempty"` // The ID of the service instance. MUST be unique for each instance of the same service. The ID helps to distinguish instances of the same service that exist at the same time (e.g. instances of a horizontally scaled service). It is preferable for the ID to be persistent and stay the same for the lifetime of the service instance, however it is acceptable that the ID is ephemeral and changes during important lifetime events for the service (e.g. service restarts). If the service has no inherent unique ID that can be used as the value of this attribute it is recommended to generate a random Version 1 or Version 4 RFC 4122 UUID (services aiming for reproducible UUIDs may also use Version 5, see RFC 4122 for more recommendations).
 }
 
-// Attributes contains additional information about the specific event occurrence. Unlike the res field, which is fixed for a particular source, attr can vary for each occurrence of the event coming from the same source. Can contain information about the request context (other than TraceId/SpanId).
-type Attributes struct {
-	Http      *Http      `json:"http,omitempty"`      // Information about outbound or inbound http requests.
-	DB        *DB        `json:"db,omitempty"`        // Information about outbound db requests.
-	Exception *Exception `json:"exception,omitempty"` // Information about an exception
-}
-
-// Http contains information about outbound or inbound HTTP requests
+// Http contains information about outbound or inbound HTTP requests (predefined for usage in Attributes)
 type Http struct {
 	Method     string  `json:"method,omitempty"`     // HTTP request method in upper case. For example GET, POST, DELETE
 	StatusCode uint16  `json:"statusCode,omitempty"` // HTTP response status code
@@ -63,14 +56,14 @@ type Client struct {
 	Duration time.Duration `json:"duration,omitempty"` // Measures the duration of the outbound HTTP request in ms
 }
 
-// DB contains information about outbound db requests.
+// DB contains information about outbound db requests (predefined for usage in Attributes)
 type DB struct {
 	Name      string `json:"name,omitempty"`      // This attribute is used to report the name of the database being accessed. For example customers oder main
 	Statement string `json:"statement,omitempty"` // The database statement being executed. Must be sanitized to exclude sensitive information. For example SELECT * FROM wuser_table; SET mykey "WuValue"
 	Operation string `json:"operation,omitempty"` // The name of the operation being executed, e.g. the MongoDB command name such as findAndModify, or the SQL keyword. For example findAndModify; HMSET; SELECT
 }
 
-// Exception contains information about an exception
+// Exception contains information about an exception  (predefined for usage in Attributes)
 type Exception struct {
 	Type       string `json:"type,omitempty"`       // The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it. For example java.net.ConnectException; OSError
 	Message    string `json:"message,omitempty"`    // The exception message. For example Division by zero
