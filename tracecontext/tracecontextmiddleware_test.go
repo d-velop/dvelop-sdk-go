@@ -1,11 +1,13 @@
 package tracecontext_test
 
 import (
+	"context"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/tracecontext"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/tracecontext"
 )
 
 func TestShouldCallInnerHandler(t *testing.T) {
@@ -93,6 +95,18 @@ func TestTraceparentHeader_GetSameTraceparentWithNewSpanIdAndFlags1(t *testing.T
 	}
 }
 
+func TestNoIdOnContext_SetTraceId_ReturnsContextWithId(t *testing.T) {
+	ctx := tracecontext.SetTraceId(context.Background(), "traceId")
+	traceId, _ := tracecontext.TraceIdFromCtx(ctx)
+	assertString(t, "traceId", traceId)
+}
+
+func TestIdOnContext_SetTraceId_ReturnsContextWithNewId(t *testing.T) {
+	ctx := tracecontext.SetSpanId(context.Background(), "spanId")
+	spanId, _ := tracecontext.SpanIdFromCtx(ctx)
+	assertString(t, "spanId", spanId)
+}
+
 type handlerSpy struct {
 	hasBeenCalled bool
 	traceparent   string
@@ -141,4 +155,3 @@ func (spy *handlerSpy) assertSpanIdIsSet() error {
 	}
 	return nil
 }
-

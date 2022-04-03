@@ -52,6 +52,16 @@ func TraceparentFromCtx(ctx context.Context) (string, error) {
 	return tp.String(), nil
 }
 
+// SetTraceId returns a new context.Context with the given trace id
+func SetTraceId(ctx context.Context, traceId string) context.Context {
+	return context.WithValue(ctx, traceIdCtxKey, traceId)
+}
+
+// SetSpanId returns a new context.Context with the given span id
+func SetSpanId(ctx context.Context, spanId string) context.Context {
+	return context.WithValue(ctx, spanIdCtxKey, spanId)
+}
+
 // TraceIdFromCtx reads the current trace-id from the context.
 func TraceIdFromCtx(ctx context.Context) (string, error) {
 	traceId, ok := ctx.Value(traceIdCtxKey).(string)
