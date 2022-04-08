@@ -33,9 +33,10 @@ type Service struct {
 
 // Attributes contains additional information about the specific event occurrence. Unlike the res field, which is fixed for a particular source, attr can vary for each occurrence of the event coming from the same source. Can contain information about the request context (other than TraceId/SpanId).
 type Attributes struct {
-	Http      *Http      `json:"http,omitempty"`      // Information about outbound or inbound http requests.
-	DB        *DB        `json:"db,omitempty"`        // Information about outbound db requests.
-	Exception *Exception `json:"exception,omitempty"` // Information about an exception
+	Http                 *Http       `json:"http,omitempty"`      // Information about outbound or inbound http requests.
+	DB                   *DB         `json:"db,omitempty"`        // Information about outbound db requests.
+	Exception            *Exception  `json:"exception,omitempty"` // Information about an exception
+	additionalAttributes interface{} // Additional Attributes can be a struct of any structure (can be set by the AddAttributes function)
 }
 
 // Http contains information about outbound or inbound HTTP requests
@@ -75,6 +76,53 @@ type Exception struct {
 	Type       string `json:"type,omitempty"`       // The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it. For example java.net.ConnectException; OSError
 	Message    string `json:"message,omitempty"`    // The exception message. For example Division by zero
 	Stacktrace string `json:"stacktrace,omitempty"` // A stacktrace as a string in the natural representation for the language runtime.
+}
+
+func (attr *Attributes) AddAttributes(additionalAttr interface{}) {
+	attr.additionalAttributes = additionalAttr
+}
+
+func (attr Attributes) MarshalJSON() ([]byte, error) {
+	type Alias Attributes // type alias to prevent infinite recursion
+	var toMarshal interface{}
+	var err error
+	if attr.additionalAttributes == nil {
+		toMarshal = Alias(attr)
+	} else {
+		toMarshal, err = toMergedMap(Alias(attr), attr.additionalAttributes)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return json.Marshal(toMarshal)
+}
+
+func toMergedMap(iOne interface{}, iTwo interface{}) (mergedMap map[string]interface{}, err error) {
+	iOneMap, err := toMap(iOne)
+	if err != nil {
+		return nil, err
+	}
+	iTwoMap, err := toMap(iTwo)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range iTwoMap {
+		iOneMap[k] = v
+	}
+	mergedMap = iOneMap
+	return
+}
+
+func toMap(i interface{}) (iMap map[string]interface{}, err error) {
+	bytes, err := json.Marshal(i)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(bytes, &iMap)
+	if err != nil {
+		return
+	}
+	return
 }
 
 // MarshalJSON customizes the JSON Representation of the Event type

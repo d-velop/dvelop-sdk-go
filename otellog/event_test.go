@@ -2,11 +2,12 @@ package otellog_test
 
 import (
 	"encoding/json"
-	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 )
 
 func TestEventWithStringBody_Marshal_BodyPropertyIsString(t *testing.T) {
@@ -227,4 +228,54 @@ func normalizeJsonString(s string) string {
 	s = strings.ReplaceAll(s, " ", "")
 	s = strings.ReplaceAll(s, "\t", "")
 	return s
+}
+
+func TestAddAttributes(t *testing.T) {
+	type A struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+
+	type B struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+	type AdditionalAttributes struct {
+		A A      `json:"a"`
+		B B      `json:"b"`
+		C string `json:"c"`
+	}
+	customAttr := AdditionalAttributes{
+		A: A{One: 1, Two: 2},
+		B: B{One: 1, Two: 2},
+		C: "3",
+	}
+	attr := log.Attributes{Http: &log.Http{Host: "testhost"}}
+	attr.AddAttributes(customAttr)
+
+	b, err := json.Marshal(attr)
+	if err != nil {
+		return
+	}
+
+	actualJsonString := normalizeJsonString(string(b))
+
+	expectedJsonString := normalizeJsonString(`{
+		"a": {
+			"one": 1,
+			"two": 2
+		},
+		"b": {
+			"one": 1,
+			"two": 2
+		},
+		"c": "3",
+		"http": {
+			"host": "testhost"
+		}
+	}`)
+
+	if actualJsonString != expectedJsonString {
+		t.Errorf("\ngot   :'%v'\nwanted:'%v'", actualJsonString, expectedJsonString)
+	}
 }
