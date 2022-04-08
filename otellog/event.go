@@ -78,10 +78,12 @@ type Exception struct {
 	Stacktrace string `json:"stacktrace,omitempty"` // A stacktrace as a string in the natural representation for the language runtime.
 }
 
+// AddAttributes adds a struct like interface to the Attributes
 func (attr *Attributes) AddAttributes(additionalAttr interface{}) {
 	attr.additionalAttributes = additionalAttr
 }
 
+// MarshalJSON customizes the JSON Representation of the Attributes type
 func (attr Attributes) MarshalJSON() ([]byte, error) {
 	type Alias Attributes // type alias to prevent infinite recursion
 	var toMarshal interface{}
@@ -97,6 +99,7 @@ func (attr Attributes) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toMarshal)
 }
 
+// toMergedMap transform interfaces to maps and merge them by keys
 func toMergedMap(iOne interface{}, iTwo interface{}) (mergedMap map[string]interface{}, err error) {
 	iOneMap, err := toMap(iOne)
 	if err != nil {
@@ -113,6 +116,7 @@ func toMergedMap(iOne interface{}, iTwo interface{}) (mergedMap map[string]inter
 	return
 }
 
+// toMap transform an interface to a map of interfaces
 func toMap(i interface{}) (iMap map[string]interface{}, err error) {
 	bytes, err := json.Marshal(i)
 	if err != nil {
