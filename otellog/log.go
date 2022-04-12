@@ -22,7 +22,7 @@ type Time func() time.Time
 
 type Hook func(ctx context.Context, e *Event)
 
-type OutputFormatter func(e *Event, msg string) ([]byte, error)
+type OutputFormatter func(e *Event) ([]byte, error)
 
 // New creates a new Logger.
 func New() *Logger {
@@ -45,13 +45,13 @@ func (l *Logger) Reset() {
 	l.hooks = nil
 	l.out = os.Stdout
 	l.time = time.Now
-	l.outputFormatter = func(e *Event, msg string) ([]byte, error) {
+	l.outputFormatter = func(e *Event) ([]byte, error) {
 		return json.Marshal(e)
 	}
 }
 
 // output writes the output for a logging event.
-func (l *Logger) output(ctx context.Context, sev Severity, msg string, options []Option) {
+func (l *Logger) output(ctx context.Context, sev Severity, msg interface{}, options []Option) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -70,7 +70,7 @@ func (l *Logger) output(ctx context.Context, sev Severity, msg string, options [
 		o(&e)
 	}
 
-	s, err := l.outputFormatter(&e, msg)
+	s, err := l.outputFormatter(&e)
 	if err == nil {
 		if len(s) == 0 || s[len(s)-1] != '\n' {
 			s = append(s, '\n')
@@ -108,9 +108,9 @@ func RegisterHook(h Hook) {
 	std.hooks = append(std.hooks, h)
 }
 
-// Debug is equivalent to log.StdDebug.Print()
-func Debug(ctx context.Context, v ...interface{}) {
-	std.output(ctx, SeverityDebug, fmt.Sprint(v...), nil)
+// Debug logs an event body according to the otel definition
+func Debug(ctx context.Context, body interface{}) {
+	std.output(ctx, SeverityDebug, body, nil)
 }
 
 // Debugf is equivalent to log.StdDebug.Printf()
@@ -118,9 +118,9 @@ func Debugf(ctx context.Context, format string, v ...interface{}) {
 	std.output(ctx, SeverityDebug, fmt.Sprintf(format, v...), nil)
 }
 
-// Info is equivalent to log.StdInfo.Print()
-func Info(ctx context.Context, v ...interface{}) {
-	std.output(ctx, SeverityInfo, fmt.Sprint(v...), nil)
+// Info logs an event body according to the otel definition
+func Info(ctx context.Context, body interface{}) {
+	std.output(ctx, SeverityInfo, body, nil)
 }
 
 // Infof is equivalent to log.StdInfo.Printf()
@@ -128,9 +128,9 @@ func Infof(ctx context.Context, format string, v ...interface{}) {
 	std.output(ctx, SeverityInfo, fmt.Sprintf(format, v...), nil)
 }
 
-// Error is equivalent to log.StdError.Print()
-func Error(ctx context.Context, v ...interface{}) {
-	std.output(ctx, SeverityError, fmt.Sprint(v...), nil)
+// Error logs an event body according to the otel definition
+func Error(ctx context.Context, body interface{}) {
+	std.output(ctx, SeverityError, body, nil)
 }
 
 // Errorf is equivalent to log.StdError.Printf()
