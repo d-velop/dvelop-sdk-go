@@ -96,13 +96,13 @@ func TestTraceparentHeader_GetSameTraceparentWithNewSpanIdAndFlags1(t *testing.T
 }
 
 func TestNoIdOnContext_SetTraceId_ReturnsContextWithId(t *testing.T) {
-	ctx := tracecontext.SetTraceId(context.Background(), "traceId")
+	ctx := tracecontext.WithTraceIdCtx(context.Background(), "traceId")
 	traceId, _ := tracecontext.TraceIdFromCtx(ctx)
 	assertString(t, "traceId", traceId)
 }
 
 func TestIdOnContext_SetTraceId_ReturnsContextWithNewId(t *testing.T) {
-	ctx := tracecontext.SetSpanId(context.Background(), "spanId")
+	ctx := tracecontext.WithSpanIdCtx(context.Background(), "spanId")
 	spanId, _ := tracecontext.SpanIdFromCtx(ctx)
 	assertString(t, "spanId", spanId)
 }
