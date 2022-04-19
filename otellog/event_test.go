@@ -230,7 +230,7 @@ func normalizeJsonString(s string) string {
 	return s
 }
 
-func TestAddAttributes(t *testing.T) {
+func TestEventWithAdditionalProperties_Marshal_JsonObjectWithAllAdditionalProperties(t *testing.T) {
 	type A struct {
 		One int `json:"one"`
 		Two int `json:"two"`
@@ -240,18 +240,44 @@ func TestAddAttributes(t *testing.T) {
 		One int `json:"one"`
 		Two int `json:"two"`
 	}
-	type AdditionalAttributes struct {
-		A A      `json:"a"`
-		B B      `json:"b"`
+	type AdditionalAttributesOne struct {
+		A A `json:"a"`
+	}
+
+	type AdditionalAttributesTwo struct {
+		B B `json:"b"`
+	}
+
+	type AdditionalAttributesThree struct {
 		C string `json:"c"`
 	}
-	customAttr := AdditionalAttributes{
+
+	customAttrOne := AdditionalAttributesOne{
 		A: A{One: 1, Two: 2},
+	}
+
+	customAttrTwo := AdditionalAttributesTwo{
 		B: B{One: 1, Two: 2},
+	}
+
+	customAttrThree := AdditionalAttributesThree{
 		C: "3",
 	}
+
 	attr := log.Attributes{Http: &log.Http{Host: "testhost"}}
-	attr.AddAttributes(customAttr)
+	var err error
+	err = attr.AdditionalAttributes(customAttrOne)
+	if err != nil {
+		return
+	}
+	err = attr.AdditionalAttributes(customAttrTwo)
+	if err != nil {
+		return
+	}
+	err = attr.AdditionalAttributes(customAttrThree)
+	if err != nil {
+		return
+	}
 
 	b, err := json.Marshal(attr)
 	if err != nil {
