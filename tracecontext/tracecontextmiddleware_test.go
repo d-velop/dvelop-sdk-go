@@ -1,11 +1,13 @@
 package tracecontext_test
 
 import (
+	"context"
 	"fmt"
-	"github.com/d-velop/dvelop-sdk-go/tracecontext"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/tracecontext"
 )
 
 func TestShouldCallInnerHandler(t *testing.T) {
@@ -67,13 +69,13 @@ func TestTraceparentHeader_SetGivenTraceIdToCtxAndGeneratesNewSpanId(t *testing.
 
 	tracecontext.AddToCtx()(&innerHandler).ServeHTTP(httptest.NewRecorder(), req)
 
-	if err := innerHandler.assertTraceIdIs("4bf92f3577b34da6a3ce929d0e0e4736"); err != nil {
+	if err = innerHandler.assertTraceIdIs("4bf92f3577b34da6a3ce929d0e0e4736"); err != nil {
 		t.Error(err)
 	}
-	if err := innerHandler.assertSpanIdIsSet(); err != nil {
+	if err = innerHandler.assertSpanIdIsSet(); err != nil {
 		t.Error(err)
 	}
-	if err := innerHandler.assertSpanIdIsNot("00f067aa0ba902b7"); err != nil {
+	if err = innerHandler.assertSpanIdIsNot("00f067aa0ba902b7"); err != nil {
 		t.Error(err)
 	}
 }
@@ -91,6 +93,25 @@ func TestTraceparentHeader_GetSameTraceparentWithNewSpanIdAndFlags1(t *testing.T
 	if err := innerHandler.assertTraceparentIs(fmt.Sprintf("00-4bf92f3577b34da6a3ce929d0e0e4736-%v-01", innerHandler.spanId)); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestNoTraceIdOnContext_WithTraceIdCtx_ReturnsContextWithTraceId(t *testing.T) {
+	ctx := tracecontext.WithTraceIdCtx(context.Background(), "4bf92f3577b34da6a3ce929d0e0e4736")
+	traceId, _ := tracecontext.TraceIdFromCtx(ctx)
+	assertString(t, "4bf92f3577b34da6a3ce929d0e0e4736", traceId)
+}
+
+func TestNoSpanIdOnContext_WithSpanIdCtx_ReturnsContextWithSpanId(t *testing.T) {
+	ctx := tracecontext.WithSpanIdCtx(context.Background(), "00f067aa0ba902b7")
+	spanId, _ := tracecontext.SpanIdFromCtx(ctx)
+	assertString(t, "00f067aa0ba902b7", spanId)
+}
+
+func TestGivenTraceIdAndSpanIdOnContext_TraceParentFromCtx_ReturnsTraceparentFromContext(t *testing.T) {
+	ctx := tracecontext.WithSpanIdCtx(context.Background(), "00f067aa0ba902b7")
+	ctx = tracecontext.WithTraceIdCtx(ctx, "4bf92f3577b34da6a3ce929d0e0e4736")
+	traceparent, _ := tracecontext.TraceparentFromCtx(ctx)
+	assertString(t, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", traceparent)
 }
 
 type handlerSpy struct {
@@ -141,4 +162,3 @@ func (spy *handlerSpy) assertSpanIdIsSet() error {
 	}
 	return nil
 }
-

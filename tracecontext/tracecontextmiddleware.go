@@ -26,8 +26,15 @@ func AddToCtx() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
-			ctx = withTraceIdCtx(ctx, req.Header)
-			ctx = withSpanIdCtx(ctx)
+
+			if traceId, err := getTraceId(req.Header); err == nil {
+				ctx = WithTraceIdCtx(ctx, traceId)
+			}
+
+			if spanId, err := NewSpanId(); err == nil {
+				ctx = WithSpanIdCtx(ctx, spanId)
+			}
+
 			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
 	}
@@ -70,21 +77,26 @@ func SpanIdFromCtx(ctx context.Context) (string, error) {
 	return spanId, nil
 }
 
-func withTraceIdCtx(parent context.Context, header http.Header) context.Context {
-	if s := header.Get(traceparentHeader); s != "" {
-		if t, err := ParseTraceparent(s); err == nil {
-			return context.WithValue(parent, traceIdCtxKey, t.TraceId())
-		}
-	}
-	if traceId, err := NewTraceId(); err == nil {
-		return context.WithValue(parent, traceIdCtxKey, traceId)
-	}
-	return parent
+// WithTraceIdCtx returns a new context.Context with the given trace id
+func WithTraceIdCtx(ctx context.Context, traceId string) context.Context {
+	return context.WithValue(ctx, traceIdCtxKey, traceId)
 }
 
-func withSpanIdCtx(parent context.Context) context.Context {
-	if spanId, err := NewSpanId(); err == nil {
-		return context.WithValue(parent, spanIdCtxKey, spanId)
+// WithSpanIdCtx returns a new context.Context with the given span id
+func WithSpanIdCtx(ctx context.Context, spanId string) context.Context {
+	return context.WithValue(ctx, spanIdCtxKey, spanId)
+}
+
+func getTraceId(header http.Header) (string, error) {
+	if s := header.Get(traceparentHeader); s != "" {
+		if t, err := ParseTraceparent(s); err == nil {
+			return t.TraceId(), nil
+		}
 	}
-	return parent
+
+	traceId, err := NewTraceId()
+	if err != nil {
+		return "", err
+	}
+	return traceId, nil
 }
