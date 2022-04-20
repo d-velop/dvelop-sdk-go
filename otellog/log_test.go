@@ -37,7 +37,7 @@ func (o *outputRecorder) OutputShouldBe(expected string) {
 var severities = []struct {
 	name  string
 	level int
-	log   func(ctx context.Context, v ...interface{})
+	log   func(ctx context.Context, body interface{})
 	logf  func(ctx context.Context, format string, v ...interface{})
 }{
 	{"Info", 9, log.Info, log.Infof},
@@ -67,14 +67,23 @@ func TestLogMessageWithSimpleString_SeverityLevel_WritesJSONToBuffer(t *testing.
 	}
 }
 
-func TestLogMessageWithMultipleStringParts_SeverityLevel_WritesJSONToBuffer(t *testing.T) {
+func TestLogMessageWithStructAsBody_SeverityLevel_WritesJSONToBuffer(t *testing.T) {
 	for _, sev := range severities {
 		t.Run(sev.name, func(t *testing.T) {
 			rec := initializeLogger(t)
+			body := &struct {
+				Id string `json:"id,omitempty"`
+				Toggle bool `json:"toggle,omitempty"`
+				Counter int `json:"counter,omitempty"`
+			}{
+				Id: "id",
+				Toggle: true,
+				Counter: 5,
+			}
 
-			sev.log(context.Background(), "Log ", "message")
+			sev.log(context.Background(), body)
 
-			rec.OutputShouldBe(fmt.Sprintf("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":%d,\"body\":\"Log message\"}\n", sev.level))
+			rec.OutputShouldBe(fmt.Sprintf("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":%d,\"body\":{\"id\":\"id\",\"toggle\":true,\"counter\":5}}\n", sev.level))
 		})
 	}
 }
@@ -110,8 +119,8 @@ func TestLogMessageWithRegisteredHook_Info_AddServiceAndWritesJSONToBuffer(t *te
 
 func TestLogMessageWithCustomOutputFormatter_Info_WritesCustomFormatToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
-	log.SetOutputFormatter(func(e *log.Event, msg string) ([]byte, error) {
-		return []byte(fmt.Sprintf("This is a %s with severity level %d.", msg, e.Severity)), nil
+	log.SetOutputFormatter(func(e *log.Event) ([]byte, error) {
+		return []byte(fmt.Sprintf("This is a %s with severity level %d.", e.Body, e.Severity)), nil
 	})
 
 	log.Info(context.Background(), "Log message")

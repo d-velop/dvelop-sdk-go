@@ -41,28 +41,55 @@ func TestLogMessageWithVisibilityIsFalse_Error_AddVisPropertyAndWritesJSONToBuff
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\",\"vis\":0}\n")
 }
 
-func TestLogMessageWithVisibilityIsFalseAndMultipleStringParts_Debug_WritesJSONToBuffer(t *testing.T) {
+func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Debug_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
+	body := &struct {
+		Id string `json:"id,omitempty"`
+		Toggle bool `json:"toggle,omitempty"`
+		Counter int `json:"counter,omitempty"`
+	}{
+		Id: "id",
+		Toggle: true,
+		Counter: 5,
+	}
 
-	log.WithVisibility(false).Debug(context.Background(), "Log ", "message")
+	log.WithVisibility(false).Debug(context.Background(), body)
 
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":\"Log message\",\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":5,\"body\":{\"id\":\"id\",\"toggle\":true,\"counter\":5},\"vis\":0}\n")
 }
 
-func TestLogMessageWithVisibilityIsFalseAndMultipleStringParts_Info_WritesJSONToBuffer(t *testing.T) {
+func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Info_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
+	body := &struct {
+		Id string `json:"id,omitempty"`
+		Toggle bool `json:"toggle,omitempty"`
+		Counter int `json:"counter,omitempty"`
+	}{
+		Id: "id",
+		Toggle: true,
+		Counter: 5,
+	}
 
-	log.WithVisibility(false).Info(context.Background(), "Log ", "message")
+	log.WithVisibility(false).Info(context.Background(), body)
 
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":{\"id\":\"id\",\"toggle\":true,\"counter\":5},\"vis\":0}\n")
 }
 
-func TestLogMessageWithVisibilityIsFalseAndMultipleStringParts_Error_WritesJSONToBuffer(t *testing.T) {
+func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Error_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
+	body := &struct {
+		Id string `json:"id,omitempty"`
+		Toggle bool `json:"toggle,omitempty"`
+		Counter int `json:"counter,omitempty"`
+	}{
+		Id: "id",
+		Toggle: true,
+		Counter: 5,
+	}
 
-	log.WithVisibility(false).Error(context.Background(), "Log ", "message")
+	log.WithVisibility(false).Error(context.Background(), body)
 
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":\"Log message\",\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":17,\"body\":{\"id\":\"id\",\"toggle\":true,\"counter\":5},\"vis\":0}\n")
 }
 
 func TestLogMessageWithVisibilityIsFalseAndIsFormatted_Debug_WritesJSONToBuffer(t *testing.T) {

@@ -226,9 +226,9 @@ func WithAdditionalAttributes(additionalAttr interface{}) *LogBuilder {
 	return ob
 }
 
-// Debug is equivalent to log.StdDebug.Print()
-func (ob *LogBuilder) Debug(ctx context.Context, v ...interface{}) {
-	std.output(ctx, SeverityDebug, fmt.Sprint(v...), ob.options)
+// Debug logs an event body according to the otel definition
+func (ob *LogBuilder) Debug(ctx context.Context, body interface{}) {
+	std.output(ctx, SeverityDebug, body, ob.options)
 }
 
 // Debugf is equivalent to log.StdDebug.Printf()
@@ -236,9 +236,9 @@ func (ob *LogBuilder) Debugf(ctx context.Context, format string, v ...interface{
 	std.output(ctx, SeverityDebug, fmt.Sprintf(format, v...), ob.options)
 }
 
-// Info is equivalent to log.StdInfo.Print()
-func (ob *LogBuilder) Info(ctx context.Context, v ...interface{}) {
-	std.output(ctx, SeverityInfo, fmt.Sprint(v...), ob.options)
+// Info logs an event body according to the otel definition
+func (ob *LogBuilder) Info(ctx context.Context, body interface{}) {
+	std.output(ctx, SeverityInfo, body, ob.options)
 }
 
 // Infof is equivalent to log.StdInfo.Printf()
@@ -246,9 +246,9 @@ func (ob *LogBuilder) Infof(ctx context.Context, format string, v ...interface{}
 	std.output(ctx, SeverityInfo, fmt.Sprintf(format, v...), ob.options)
 }
 
-// Error is equivalent to log.StdError.Print()
-func (ob *LogBuilder) Error(ctx context.Context, v ...interface{}) {
-	std.output(ctx, SeverityError, fmt.Sprint(v...), ob.options)
+// Error logs an event body according to the otel definition
+func (ob *LogBuilder) Error(ctx context.Context, body interface{}) {
+	std.output(ctx, SeverityError, body, ob.options)
 }
 
 // Errorf is equivalent to log.StdError.Printf()
