@@ -36,7 +36,7 @@ type Attributes struct {
 	Http                 *Http                  `json:"http,omitempty"`      // Information about outbound or inbound http requests.
 	DB                   *DB                    `json:"db,omitempty"`        // Information about outbound db requests.
 	Exception            *Exception             `json:"exception,omitempty"` // Information about an exception
-	additionalAttributes map[string]interface{} // Additional Attributes can be a map of structs of any structure (can be set by the AdditionalAttributes function)
+	additionalAttributes map[string]interface{} // Additional Attributes can be a map of structs of any structure (can be set by the AddAdditionalAttributes function)
 }
 
 // Http contains information about outbound or inbound HTTP requests
@@ -78,8 +78,8 @@ type Exception struct {
 	Stacktrace string `json:"stacktrace,omitempty"` // A stacktrace as a string in the natural representation for the language runtime.
 }
 
-// AdditionalAttributes adds a struct-like interface to the Attributes
-func (attr *Attributes) AdditionalAttributes(additionalAttr interface{}) error {
+// AddAdditionalAttributes adds a struct-like interface to the Attributes
+func (attr *Attributes) AddAdditionalAttributes(additionalAttr interface{}) error {
 	if attr.additionalAttributes == nil {
 		attr.additionalAttributes = make(map[string]interface{})
 	}

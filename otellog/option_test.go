@@ -206,7 +206,7 @@ func TestLogMessageWithException_Info_AddExceptionPropertyAndWritesJSONToBuffer(
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"exception\":{\"type\":\"CustomLogException\"}}}\n")
 }
 
-func TestLogMessageWithException_Info_AdditionalAttributesPropertyAndWritesJSONToBuffer(t *testing.T) {
+func TestLogMessageWithAdditionalAttributes_Info_AddAdditionalAttributesPropertyAndWritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	type A struct {
 		One int `json:"one"`

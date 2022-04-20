@@ -148,7 +148,7 @@ func (ob *LogBuilder) WithAdditionalAttributes(additionalAttr interface{}) *LogB
 		if e.Attributes == nil {
 			e.Attributes = &Attributes{}
 		}
-		err := e.Attributes.AdditionalAttributes(additionalAttr)
+		err := e.Attributes.AddAdditionalAttributes(additionalAttr)
 		if err != nil {
 			panic(err)
 		}

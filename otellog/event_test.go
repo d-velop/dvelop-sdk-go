@@ -266,15 +266,15 @@ func TestEventWithAdditionalProperties_Marshal_JsonObjectWithAllAdditionalProper
 
 	attr := log.Attributes{Http: &log.Http{Host: "testhost"}}
 	var err error
-	err = attr.AdditionalAttributes(customAttrOne)
+	err = attr.AddAdditionalAttributes(customAttrOne)
 	if err != nil {
 		return
 	}
-	err = attr.AdditionalAttributes(customAttrTwo)
+	err = attr.AddAdditionalAttributes(customAttrTwo)
 	if err != nil {
 		return
 	}
-	err = attr.AdditionalAttributes(customAttrThree)
+	err = attr.AddAdditionalAttributes(customAttrThree)
 	if err != nil {
 		return
 	}
