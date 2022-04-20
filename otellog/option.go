@@ -142,6 +142,20 @@ func (ob *LogBuilder) WithException(err Exception) *LogBuilder {
 	return ob
 }
 
+// WithAdditionalAttributes adds custom attributes to the log event.
+func (ob *LogBuilder) WithAdditionalAttributes(additionalAttr interface{}) *LogBuilder {
+	ob.options = append(ob.options, func(e *Event) {
+		if e.Attributes == nil {
+			e.Attributes = &Attributes{}
+		}
+		err := e.Attributes.AddAdditionalAttributes(additionalAttr)
+		if err != nil {
+			panic(err)
+		}
+	})
+	return ob
+}
+
 // With adds a custom option to the log event.
 func With(o Option) *LogBuilder {
 	ob := &LogBuilder{}
@@ -202,6 +216,13 @@ func WithDB(db DB) *LogBuilder {
 func WithException(err Exception) *LogBuilder {
 	ob := &LogBuilder{}
 	ob.WithException(err)
+	return ob
+}
+
+// WithAdditionalAttributes adds the exception attribute to the log event.
+func WithAdditionalAttributes(additionalAttr interface{}) *LogBuilder {
+	ob := &LogBuilder{}
+	ob.WithAdditionalAttributes(additionalAttr)
 	return ob
 }
 

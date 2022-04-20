@@ -2,10 +2,11 @@ package otellog_test
 
 import (
 	"context"
-	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 )
 
 func TestLogMessageWithVisibilityIsFalse_Debug_AddVisPropertyAndWritesJSONToBuffer(t *testing.T) {
@@ -232,17 +233,65 @@ func TestLogMessageWithException_Info_AddExceptionPropertyAndWritesJSONToBuffer(
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"exception\":{\"type\":\"CustomLogException\"}}}\n")
 }
 
+func TestLogMessageWithAdditionalAttributes_Info_AddAdditionalAttributesPropertyAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	type A struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+
+	type B struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+	type AdditionalAttributes struct {
+		A A      `json:"a"`
+		B B      `json:"b"`
+		C string `json:"c"`
+	}
+	customAttr := AdditionalAttributes{
+		A: A{One: 1, Two: 2},
+		B: B{One: 1, Two: 2},
+		C: "3",
+	}
+
+	log.WithAdditionalAttributes(customAttr).Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"a\":{\"one\":1,\"two\":2},\"b\":{\"one\":1,\"two\":2},\"c\":\"3\"}}\n")
+}
+
 func TestLogMessageWithEveryPossibleOption_Info_AddAllPropertiesAndWritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
+
+	type A struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+
+	type B struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+	type AdditionalAttributes struct {
+		A A      `json:"a"`
+		B B      `json:"b"`
+		C string `json:"c"`
+	}
+	customAttr := AdditionalAttributes{
+		A: A{One: 1, Two: 2},
+		B: B{One: 1, Two: 2},
+		C: "3",
+	}
 
 	log.WithName("Log message name").
 		WithVisibility(false).
 		WithHttp(log.Http{Method: "Get"}).
 		WithDB(log.DB{Name: "CustomDb"}).
 		WithException(log.Exception{Type: "CustomLogException"}).
+		WithAdditionalAttributes(customAttr).
 		Info(context.Background(), "Log message")
 
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"name\":\"Log message name\",\"body\":\"Log message\",\"attr\":{\"http\":{\"method\":\"Get\"},\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"}},\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"name\":\"Log message name\",\"body\":\"Log message\",\"attr\":{\"a\":{\"one\":1,\"two\":2},\"b\":{\"one\":1,\"two\":2},\"c\":\"3\",\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"},\"http\":{\"method\":\"Get\"}},\"vis\":0}\n")
 }
 
 func TestLogMessageWithRegisteredHookAndOtherService_Info_OverrideServicePropertyAndWritesJSONToBuffer(t *testing.T) {

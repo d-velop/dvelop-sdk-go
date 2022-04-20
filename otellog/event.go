@@ -33,9 +33,10 @@ type Service struct {
 
 // Attributes contains additional information about the specific event occurrence. Unlike the res field, which is fixed for a particular source, attr can vary for each occurrence of the event coming from the same source. Can contain information about the request context (other than TraceId/SpanId).
 type Attributes struct {
-	Http      *Http      `json:"http,omitempty"`      // Information about outbound or inbound http requests.
-	DB        *DB        `json:"db,omitempty"`        // Information about outbound db requests.
-	Exception *Exception `json:"exception,omitempty"` // Information about an exception
+	Http                 *Http                  `json:"http,omitempty"`      // Information about outbound or inbound http requests.
+	DB                   *DB                    `json:"db,omitempty"`        // Information about outbound db requests.
+	Exception            *Exception             `json:"exception,omitempty"` // Information about an exception
+	additionalAttributes map[string]interface{} // Additional Attributes can be a map of structs of any structure (can be set by the AddAdditionalAttributes function)
 }
 
 // Http contains information about outbound or inbound HTTP requests
@@ -75,6 +76,57 @@ type Exception struct {
 	Type       string `json:"type,omitempty"`       // The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it. For example java.net.ConnectException; OSError
 	Message    string `json:"message,omitempty"`    // The exception message. For example Division by zero
 	Stacktrace string `json:"stacktrace,omitempty"` // A stacktrace as a string in the natural representation for the language runtime.
+}
+
+// AddAdditionalAttributes adds a struct-like interface to the Attributes
+func (attr *Attributes) AddAdditionalAttributes(additionalAttr interface{}) error {
+	if attr.additionalAttributes == nil {
+		attr.additionalAttributes = make(map[string]interface{})
+	}
+
+	additionalAttrMap, err := toMap(additionalAttr)
+	if err != nil {
+		return err
+	}
+	merge(attr.additionalAttributes, additionalAttrMap)
+	return nil
+}
+
+// MarshalJSON customizes the JSON Representation of the Attributes type
+func (attr Attributes) MarshalJSON() ([]byte, error) {
+	type Alias Attributes // type alias to prevent infinite recursion
+	var toMarshal interface{}
+	if attr.additionalAttributes == nil {
+		toMarshal = Alias(attr)
+	} else {
+		attrMap, err := toMap(Alias(attr))
+		if err != nil {
+			return nil, err
+		}
+		toMarshal = merge(attrMap, attr.additionalAttributes)
+	}
+	return json.Marshal(toMarshal)
+}
+
+// merge mapTwo in mapOne by keys
+func merge(mapOne map[string]interface{}, mapTwo map[string]interface{}) map[string]interface{} {
+	for k, v := range mapTwo {
+		mapOne[k] = v
+	}
+	return mapOne
+}
+
+// toMap transform a struct-like interface to a map of interfaces
+func toMap(i interface{}) (iMap map[string]interface{}, err error) {
+	bytes, err := json.Marshal(i)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(bytes, &iMap)
+	if err != nil {
+		return
+	}
+	return
 }
 
 // MarshalJSON customizes the JSON Representation of the Event type

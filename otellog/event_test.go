@@ -2,11 +2,12 @@ package otellog_test
 
 import (
 	"encoding/json"
-	log "github.com/d-velop/dvelop-sdk-go/otellog"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/d-velop/dvelop-sdk-go/otellog"
 )
 
 func TestEventWithStringBody_Marshal_BodyPropertyIsString(t *testing.T) {
@@ -227,4 +228,80 @@ func normalizeJsonString(s string) string {
 	s = strings.ReplaceAll(s, " ", "")
 	s = strings.ReplaceAll(s, "\t", "")
 	return s
+}
+
+func TestEventWithAdditionalProperties_Marshal_JsonObjectWithAllAdditionalProperties(t *testing.T) {
+	type A struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+
+	type B struct {
+		One int `json:"one"`
+		Two int `json:"two"`
+	}
+	type AdditionalAttributesOne struct {
+		A A `json:"a"`
+	}
+
+	type AdditionalAttributesTwo struct {
+		B B `json:"b"`
+	}
+
+	type AdditionalAttributesThree struct {
+		C string `json:"c"`
+	}
+
+	customAttrOne := AdditionalAttributesOne{
+		A: A{One: 1, Two: 2},
+	}
+
+	customAttrTwo := AdditionalAttributesTwo{
+		B: B{One: 1, Two: 2},
+	}
+
+	customAttrThree := AdditionalAttributesThree{
+		C: "3",
+	}
+
+	attr := log.Attributes{Http: &log.Http{Host: "testhost"}}
+	var err error
+	err = attr.AddAdditionalAttributes(customAttrOne)
+	if err != nil {
+		return
+	}
+	err = attr.AddAdditionalAttributes(customAttrTwo)
+	if err != nil {
+		return
+	}
+	err = attr.AddAdditionalAttributes(customAttrThree)
+	if err != nil {
+		return
+	}
+
+	b, err := json.Marshal(attr)
+	if err != nil {
+		return
+	}
+
+	actualJsonString := normalizeJsonString(string(b))
+
+	expectedJsonString := normalizeJsonString(`{
+		"a": {
+			"one": 1,
+			"two": 2
+		},
+		"b": {
+			"one": 1,
+			"two": 2
+		},
+		"c": "3",
+		"http": {
+			"host": "testhost"
+		}
+	}`)
+
+	if actualJsonString != expectedJsonString {
+		t.Errorf("\ngot   :'%v'\nwanted:'%v'", actualJsonString, expectedJsonString)
+	}
 }
