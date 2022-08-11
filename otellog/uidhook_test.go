@@ -13,7 +13,7 @@ func TestAddUidToLogEvent_givenUidFnReturnsUid_whenLogWritten_thenAddsUidToLog(t
 		return "a63554a8-6044-417b-a0aa-37a3b7d24e82", nil
 	})
 
-	hook := log.AddUidToLogEvent(uidFn)
+	hook := log.AddUserIdToLogEvents(uidFn)
 
 	rec := initializeLogger(t)
 
@@ -29,7 +29,7 @@ func TestAddUidToLogEvent_givenUidExplicitlySet_whenLogWritten_thenHookDoesNotRe
 		return "a63554a8-6044-417b-a0aa-37a3b7d24e82", nil
 	})
 
-	hook := log.AddUidToLogEvent(uidFn)
+	hook := log.AddUserIdToLogEvents(uidFn)
 
 	rec := initializeLogger(t)
 
@@ -45,7 +45,7 @@ func TestAddUidToLogEvent_givenUidFnReturnsEmptyUid_whenLogWritten_thenAddsNothi
 		return "", nil
 	})
 
-	hook := log.AddUidToLogEvent(uidFn)
+	hook := log.AddUserIdToLogEvents(uidFn)
 
 	rec := initializeLogger(t)
 
@@ -61,7 +61,7 @@ func TestAddUidToLogEvent_givenUidFnReturnsError_whenLogWritten_thenAddsNothingT
 		return "", errors.New("some error")
 	})
 
-	hook := log.AddUidToLogEvent(uidFn)
+	hook := log.AddUserIdToLogEvents(uidFn)
 
 	rec := initializeLogger(t)
 

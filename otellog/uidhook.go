@@ -8,7 +8,7 @@ import (
 
 type UidFromContextFn func(ctx context.Context) (string, error)
 
-func AddUidToLogEvent(uidFn UidFromContextFn) Hook {
+func AddUserIdToLogEvents(uidFn UidFromContextFn) Hook {
 
 	return func(ctx context.Context, e *Event) {
 		uid, _ := uidFn(ctx)
