@@ -23,6 +23,22 @@ func TestAddUidToLogEvent_givenUidFnReturnsUid_whenLogWritten_thenAddsUidToLog(t
 	rec.OutputShouldBe(`{"time":"2022-01-01T01:02:03.000000004Z","sev":9,"body":"Testmessage","uid":"89757a7742548835532f1809558e0ab24eb39057966ad1630f1c493d94c3aec1"}` + "\n")
 }
 
+func TestAddUidToLogEvent_givenUidExplicitlySet_whenLogWritten_thenHookDoesNotReplaceExplicitValue(t *testing.T) {
+
+	uidFn := log.UidFromContextFn(func(ctx context.Context) (string, error) {
+		return "a63554a8-6044-417b-a0aa-37a3b7d24e82", nil
+	})
+
+	hook := log.AddUidToLogEvent(uidFn)
+
+	rec := initializeLogger(t)
+
+	log.RegisterHook(hook)
+	log.WithUserId("a63554a8-aaaa-bbbbb-cccc-37a3b7d24e82").Info(context.Background(), "Testmessage")
+
+	rec.OutputShouldBe(`{"time":"2022-01-01T01:02:03.000000004Z","sev":9,"body":"Testmessage","uid":"b91aa04538b01137e2e4733f9591f901d0e29a7b48d671c33a8e38972f9ee7e3"}` + "\n")
+}
+
 func TestAddUidToLogEvent_givenUidFnReturnsEmptyUid_whenLogWritten_thenAddsNothingToLog(t *testing.T) {
 
 	uidFn := log.UidFromContextFn(func(ctx context.Context) (string, error) {
