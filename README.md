@@ -1,11 +1,11 @@
 # d.velop cloud SDK for Go
-[![Build Status](https://travis-ci.com/d-velop/dvelop-sdk-go.svg?branch=master)](https://travis-ci.com/d-velop/dvelop-sdk-go)
+[![Build Status](https://travis-ci.com/d-velop/dvelop-sdk-go.svg?branch=main)](https://travis-ci.com/d-velop/dvelop-sdk-go)
 [![Godoc](https://godoc.org/github.com/d-velop/dvelop-sdk-go?status.svg)](https://godoc.org/github.com/d-velop/dvelop-sdk-go)
 
-This is the official SDK to build Apps for [d.velop cloud](https://www.d-velop.de/cloud/) using 
+This is the official SDK to build Apps for [d.velop cloud](https://www.d-velop.de/cloud/) using
 the [Go Progamming Language](https://golang.org/).
 
-The project has beta status. **So for now expect things to change.** 
+The project has beta status. **So for now expect things to change.**
 
 ## Installing
 
@@ -26,8 +26,8 @@ and the process for submitting pull requests to us.
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see 
-the [releases on this repository](https://github.com/d-velop/dvelop-sdk-go/releases). 
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see
+the [releases on this repository](https://github.com/d-velop/dvelop-sdk-go/releases).
 
 ## License
 
@@ -39,4 +39,4 @@ Thanks to the following projects for inspiration
 
 * [Starting an Open Source Project](https://opensource.guide/starting-a-project/)
 * [README template](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2)
-* [CONTRIBUTING template](https://github.com/nayafia/contributing-template/blob/master/CONTRIBUTING-template.md)
+* [CONTRIBUTING template](https://github.com/nayafia/contributing-template/blob/main/CONTRIBUTING-template.md)
