@@ -74,6 +74,9 @@ var StdDebug = New(os.Stderr, newWriteMessageFunc("DEBUG"))
 // StdInfo is the standard logger for info messages
 var StdInfo = New(os.Stderr, newWriteMessageFunc("INFO"))
 
+// StdWarn is the standard logger for warn messages
+var StdWarn = New(os.Stderr, newWriteMessageFunc("WARN"))
+
 // StdError is the standard logger for error messages
 var StdError = New(os.Stderr, newWriteMessageFunc("ERROR"))
 
@@ -93,7 +96,7 @@ func Debug(ctx context.Context, v ...interface{}) {
 	StdDebug.Print(ctx, v...)
 }
 
-// Debug is equivalent to log.StdDebug.Printf()
+// Debugf is equivalent to log.StdDebug.Printf()
 func Debugf(ctx context.Context, format string, v ...interface{}) {
 	StdDebug.Printf(ctx, format, v...)
 }
@@ -103,9 +106,19 @@ func Info(ctx context.Context, v ...interface{}) {
 	StdInfo.Print(ctx, v...)
 }
 
-// Info is equivalent to log.StdInfo.Printf()
+// Infof is equivalent to log.StdInfo.Printf()
 func Infof(ctx context.Context, format string, v ...interface{}) {
 	StdInfo.Printf(ctx, format, v...)
+}
+
+// Warn is equivalent to log.StdWarn.Print()
+func Warn(ctx context.Context, v ...interface{}) {
+	StdWarn.Print(ctx, v...)
+}
+
+// Warnf is equivalent to log.StdWarn.Printf()
+func Warnf(ctx context.Context, format string, v ...interface{}) {
+	StdWarn.Printf(ctx, format, v...)
 }
 
 // Error is equivalent to log.StdError.Print()
@@ -113,7 +126,7 @@ func Error(ctx context.Context, v ...interface{}) {
 	StdError.Print(ctx, v...)
 }
 
-// Error is equivalent to log.StdError.Printf()
+// Errorf is equivalent to log.StdError.Printf()
 func Errorf(ctx context.Context, format string, v ...interface{}) {
 	StdError.Printf(ctx, format, v...)
 }

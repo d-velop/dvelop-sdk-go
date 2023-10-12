@@ -179,6 +179,32 @@ func TestStdInfoWriteMessageUnchanged_Infof_WritesMessageWithTimestampAndInfo(t 
 	}
 }
 
+func TestStdInfoWriteMessageUnchanged_Warn_WritesMessageWithTimestampAndInfo(t *testing.T) {
+	rec := newOutputRecorder(t)
+	log.StdWarn.SetOutput(rec)
+
+	log.Warn(context.Background(), "Message")
+
+	r, _ := regexp.Compile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z WARN Message\n`)
+	actual := rec.String()
+	if !r.MatchString(actual) {
+		t.Errorf("'%v' doesn't match the pattern '<RFC3339 Timestamp> WARN Message\n'", actual)
+	}
+}
+
+func TestStdInfoWriteMessageUnchanged_Warnf_WritesMessageWithTimestampAndInfo(t *testing.T) {
+	rec := newOutputRecorder(t)
+	log.StdWarn.SetOutput(rec)
+
+	log.Warnf(context.Background(), "Message %v", 1)
+
+	r, _ := regexp.Compile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z WARN Message 1\n`)
+	actual := rec.String()
+	if !r.MatchString(actual) {
+		t.Errorf("'%v' doesn't match the pattern '<RFC3339 Timestamp> WARN Message\n'", actual)
+	}
+}
+
 func TestStdInfoWriteMessageUnchanged_Error_WritesMessageWithTimestampAndInfo(t *testing.T) {
 	rec := newOutputRecorder(t)
 	log.StdError.SetOutput(rec)
