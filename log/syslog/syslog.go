@@ -17,6 +17,7 @@ import (
 
 const DEBUG = 7
 const INFO = 6
+const WARN = 4
 const ERROR = 3
 
 // NewWriter creates a new syslogwriter which writes to the given endpoint
