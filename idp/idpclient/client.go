@@ -54,8 +54,8 @@ func PrincipalCache(pc Cache) Option {
 
 // New creates a new Client for the IdentityProvider-App using the following defaults:
 //
-//	• HttpClient: http.DefaultClient
-//	• principalCache: An internal implementation is used
+//   - HttpClient: http.DefaultClient
+//   - principalCache: An internal implementation is used
 //
 // If you don't want to use the defaults provide one or more options to this function.
 func New(options ...Option) (*client, error) {
@@ -150,7 +150,7 @@ func (c *client) Validate(ctx context.Context, systemBaseUri string, tenantId st
 			c.principalCache.Set(cacheKey, p, validFor)
 		}
 		return &p, nil
-	case http.StatusUnauthorized:
+	case http.StatusUnauthorized, http.StatusForbidden:
 		_, _ = ioutil.ReadAll(resp.Body) // client must read to EOF and close body cf. https://godoc.org/net/http#Client
 		return nil, nil
 	default:
@@ -166,7 +166,6 @@ The authSessionId is used to authorize the request.
 
 If the user exists, a none nil *scim.Principal is returned.
 Otherwise the returned *scim.Principal is nil.
-
 */
 func (c *client) GetPrincipalById(ctx context.Context, systemBaseUri string, tenantId string, authSessionId string, principalId string) (*scim.Principal, error) {
 	// tenantid not used so far but included to implement a cache without changing the method signature
