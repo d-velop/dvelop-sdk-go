@@ -440,7 +440,7 @@ func TestIdpReturnsUnexpectedStatusCode_GetPrincipalById_ReturnsError(t *testing
 	}
 }
 
-func TestIdpReturns403WithEmptyResponseMsg_Validate_ReturnsNil(t *testing.T) {
+func TestIdpReturnsForbiddenWithEmptyResponseMsg_Validate_ReturnsNil(t *testing.T) {
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "max-age=1600, private")
 		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
