@@ -410,7 +410,7 @@ func TestCallerIsAuthorizedAndPrincipalDoesntExist_GetPrincipalById_ReturnsNil(t
 	}
 
 	if got != nil {
-		t.Errorf("expected principal value nil, got %v ",got)
+		t.Errorf("expected principal value nil, got %v ", got)
 	}
 }
 
@@ -440,11 +440,28 @@ func TestIdpReturnsUnexpectedStatusCode_GetPrincipalById_ReturnsError(t *testing
 	}
 }
 
-func TestNonExplicitHandledReturnCodeWithEmptyResponseMsg_Validate_ReturnsError(t *testing.T) {
+func TestIdpReturnsForbiddenWithEmptyResponseMsg_Validate_ReturnsNil(t *testing.T) {
 	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "max-age=1600, private")
 		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
 		w.WriteHeader(403)
+		w.Write([]byte(""))
+		return
+	}))
+	defer idpStub.Close()
+
+	got, err := defaultClient.Validate(context.Background(), idpStub.URL, "1", invalidAuthSessionId)
+
+	if err != nil || got != nil {
+		t.Error("expects principal value nil and nil error")
+	}
+}
+
+func TestNonExplicitHandledReturnCodeWithEmptyResponseMsg_Validate_ReturnsError(t *testing.T) {
+	idpStub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "max-age=1600, private")
+		w.Header().Set("Content-Type", "application/hal+json; charset=utf-8")
+		w.WriteHeader(410)
 		w.Write([]byte(""))
 		return
 	}))
