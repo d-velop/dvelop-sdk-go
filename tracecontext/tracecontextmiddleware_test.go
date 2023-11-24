@@ -148,6 +148,17 @@ func TestRoundTrip_givenNonTraceparentInContext_thenDoesNotAddToHeader(t *testin
 	}
 }
 
+func TestRoundTrip_givenInnerRoundTripper_thenCallsInner(t *testing.T) {
+	req := httptest.NewRequest("GET", "/myresource/sub", nil)
+	mock := roundTripperMock{called: false}
+
+	_, _ = tracecontext.RoundTripper(&mock).RoundTrip(req)
+
+	if mock.called != true {
+		t.Errorf("mock.called does not match\nExpected: %t\nGot:      %t", true, mock.called)
+	}
+}
+
 type handlerSpy struct {
 	hasBeenCalled bool
 	traceparent   string
@@ -198,8 +209,10 @@ func (spy *handlerSpy) assertSpanIdIsSet() error {
 }
 
 type roundTripperMock struct {
+	called bool
 }
 
 func (rt *roundTripperMock) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.called = true
 	return &http.Response{Request: req}, nil
 }
