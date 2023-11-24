@@ -114,6 +114,51 @@ func TestGivenTraceIdAndSpanIdOnContext_TraceParentFromCtx_ReturnsTraceparentFro
 	assertString(t, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", traceparent)
 }
 
+func TestRoundTripper_givenTraceparentInContext_thenAddsToHeader(t *testing.T) {
+	ctx := tracecontext.WithSpanIdCtx(context.Background(), "00f067aa0ba902b7")
+	ctx = tracecontext.WithTraceIdCtx(ctx, "4bf92f3577b34da6a3ce929d0e0e4736")
+	req := httptest.NewRequest("GET", "/myresource/sub", nil).WithContext(ctx)
+	mock := roundTripperMock{}
+
+	resp, err := tracecontext.RoundTripper(&mock).RoundTrip(req)
+	if err != nil {
+		t.Errorf("err does not match\nExpected: %v\nGot:      %v", nil, err)
+	}
+
+	traceparentGot := resp.Request.Header.Get("traceparent")
+	traceparentWant, _ := tracecontext.TraceparentFromCtx(ctx)
+	if traceparentGot != traceparentWant {
+		t.Errorf("traceparentGot does not match\nExpected: %s\nGot:      %s", traceparentWant, traceparentGot)
+	}
+}
+
+func TestRoundTrip_givenNonTraceparentInContext_thenDoesNotAddToHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "/myresource/sub", nil)
+	mock := roundTripperMock{}
+
+	resp, err := tracecontext.RoundTripper(&mock).RoundTrip(req)
+	if err != nil {
+		t.Errorf("err does not match\nExpected: %v\nGot:      %v", nil, err)
+	}
+
+	traceparentGot := resp.Request.Header.Get("traceparent")
+	traceparentWant := ""
+	if traceparentGot != traceparentWant {
+		t.Errorf("traceparentGot does not match\nExpected: %s\nGot:      %s", traceparentWant, traceparentGot)
+	}
+}
+
+func TestRoundTrip_givenInnerRoundTripper_thenCallsInner(t *testing.T) {
+	req := httptest.NewRequest("GET", "/myresource/sub", nil)
+	mock := roundTripperMock{called: false}
+
+	_, _ = tracecontext.RoundTripper(&mock).RoundTrip(req)
+
+	if mock.called != true {
+		t.Errorf("mock.called does not match\nExpected: %t\nGot:      %t", true, mock.called)
+	}
+}
+
 type handlerSpy struct {
 	hasBeenCalled bool
 	traceparent   string
@@ -161,4 +206,13 @@ func (spy *handlerSpy) assertSpanIdIsSet() error {
 		return fmt.Errorf("handler did not set a spanId on context")
 	}
 	return nil
+}
+
+type roundTripperMock struct {
+	called bool
+}
+
+func (rt *roundTripperMock) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.called = true
+	return &http.Response{Request: req}, nil
 }

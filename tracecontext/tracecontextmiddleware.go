@@ -100,3 +100,18 @@ func getTraceId(header http.Header) (string, error) {
 	}
 	return traceId, nil
 }
+
+func RoundTripper(next http.RoundTripper) http.RoundTripper {
+	return &roundTripper{next: next}
+}
+
+type roundTripper struct {
+	next http.RoundTripper
+}
+
+func (rt *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if traceparent, err := TraceparentFromCtx(req.Context()); err == nil {
+		req.Header.Set(traceparentHeader, traceparent)
+	}
+	return rt.next.RoundTrip(req)
+}
