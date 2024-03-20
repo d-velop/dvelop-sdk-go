@@ -71,12 +71,17 @@ func (l *Logger) output(ctx context.Context, sev Severity, msg interface{}, opti
 	}
 
 	s, err := l.outputFormatter(&e)
-	if err == nil {
-		if len(s) == 0 || s[len(s)-1] != '\n' {
-			s = append(s, '\n')
-		}
-		l.out.Write(s)
+	if err != nil {
+		return
 	}
+	if len(s) == 0 {
+		return
+	}
+
+	if s[len(s)-1] != '\n' {
+		s = append(s, '\n')
+	}
+	l.out.Write(s)
 }
 
 // SetOutput sets the output destination for the logger.
