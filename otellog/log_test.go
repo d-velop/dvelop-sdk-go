@@ -72,12 +72,12 @@ func TestLogMessageWithStructAsBody_SeverityLevel_WritesJSONToBuffer(t *testing.
 		t.Run(sev.name, func(t *testing.T) {
 			rec := initializeLogger(t)
 			body := &struct {
-				Id string `json:"id,omitempty"`
-				Toggle bool `json:"toggle,omitempty"`
-				Counter int `json:"counter,omitempty"`
+				Id      string `json:"id,omitempty"`
+				Toggle  bool   `json:"toggle,omitempty"`
+				Counter int    `json:"counter,omitempty"`
 			}{
-				Id: "id",
-				Toggle: true,
+				Id:      "id",
+				Toggle:  true,
 				Counter: 5,
 			}
 
@@ -126,6 +126,39 @@ func TestLogMessageWithCustomOutputFormatter_Info_WritesCustomFormatToBuffer(t *
 	log.Info(context.Background(), "Log message")
 
 	rec.OutputShouldBe("This is a Log message with severity level 9.\n")
+}
+
+func TestLogCustomOutputFormatterReturnsError_Info_WritesCustomFormatToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.SetOutputFormatter(func(e *log.Event) ([]byte, error) {
+		return nil, fmt.Errorf("error")
+	})
+
+	log.Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("")
+}
+
+func TestLogCustomOutputFormatterReturnsEmptyString_Info_WritesCustomFormatToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.SetOutputFormatter(func(e *log.Event) ([]byte, error) {
+		return []byte(""), nil
+	})
+
+	log.Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("")
+}
+
+func TestLogCustomOutputFormatterReturnsStringNil_Info_WritesCustomFormatToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+	log.SetOutputFormatter(func(e *log.Event) ([]byte, error) {
+		return nil, nil
+	})
+
+	log.Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("")
 }
 
 func TestSeveralLogMessagesAtTheSameTime_Info_WritesJSONToBuffer(t *testing.T) {
