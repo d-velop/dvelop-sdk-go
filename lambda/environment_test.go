@@ -2,10 +2,11 @@ package lambda_test
 
 import (
 	"context"
-	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/d-velop/dvelop-sdk-go/lambda"
 	"net/http"
 	"testing"
+
+	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/d-velop/dvelop-sdk-go/lambda"
 )
 
 func TestGetAliasFromRequest_LambdaArnHasNamedLambdaAlias_ReturnsAliasFromArn(t *testing.T) {

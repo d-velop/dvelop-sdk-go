@@ -2,10 +2,11 @@ package test
 
 import (
 	"encoding/json"
-	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+
+	"github.com/d-velop/dvelop-sdk-go/idp/scim"
 )
 
 var bearerTokenRegex = regexp.MustCompile("^(?i)bearer (.*)$")
