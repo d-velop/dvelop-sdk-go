@@ -1,9 +1,10 @@
 package lambda
 
 import (
-	"github.com/aws/aws-lambda-go/lambdacontext"
 	"net/http"
 	"strings"
+
+	"github.com/aws/aws-lambda-go/lambdacontext"
 )
 
 func GetAliasFromRequest(req http.Request) string {
