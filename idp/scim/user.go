@@ -34,6 +34,12 @@ type Principal struct {
 	// Each User returned MAY include a non-empty displayName value. The name SHOULD be the full name of the User being described if known (e.g. Babs Jensen or Ms. Barbara J Jensen, III), but MAY be a username or handle, if that is all that is available (e.g. bjensen). The value provided SHOULD be the primary textual label by which this User is normally displayed by the Service Provider when presenting it to end-users.
 	DisplayName string `json:"displayName"`
 
+	// Locale is used to indicate the User's default location for localizing items such as currency, date time format, numerical representations, etc.
+	Locale string `json:"locale"`
+
+	// PreferredLanguage indicates the User's preferred written or spoken language.
+	PreferredLanguage string `json:"preferredLanguage"`
+
 	// ProfileUrl is a fully qualified URL to a page representing the User's online profile.
 	ProfileUrl string `json:"profileUrl"`
 
