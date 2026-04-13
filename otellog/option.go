@@ -2,6 +2,8 @@ package otellog
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -131,6 +133,19 @@ func (ob *LogBuilder) WithDB(db DB) *LogBuilder {
 	return ob
 }
 
+func (ob *LogBuilder) WithUserId(userId string) *LogBuilder {
+	ob.options = append(ob.options, func(e *Event) {
+		if userId != "" {
+			hash := sha256.New()
+			hash.Write([]byte(userId))
+			sum := hash.Sum(nil)
+			uidHash := hex.EncodeToString(sum)
+			e.UserIdHash = uidHash
+		}
+	})
+	return ob
+}
+
 // WithException adds the exception attribute to the log event.
 func (ob *LogBuilder) WithException(err Exception) *LogBuilder {
 	ob.options = append(ob.options, func(e *Event) {
@@ -209,6 +224,13 @@ func WithHttpResponse(resp *http.Response) *LogBuilder {
 func WithDB(db DB) *LogBuilder {
 	ob := &LogBuilder{}
 	ob.WithDB(db)
+	return ob
+}
+
+// WithUserId hashes the userId and adds the uid attribute to the log event.
+func WithUserId(userId string) *LogBuilder {
+	ob := &LogBuilder{}
+	ob.WithUserId(userId)
 	return ob
 }
 

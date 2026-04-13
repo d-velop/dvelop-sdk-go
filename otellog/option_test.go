@@ -44,12 +44,12 @@ func TestLogMessageWithVisibilityIsFalse_Error_AddVisPropertyAndWritesJSONToBuff
 func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Debug_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	body := &struct {
-		Id string `json:"id,omitempty"`
-		Toggle bool `json:"toggle,omitempty"`
-		Counter int `json:"counter,omitempty"`
+		Id      string `json:"id,omitempty"`
+		Toggle  bool   `json:"toggle,omitempty"`
+		Counter int    `json:"counter,omitempty"`
 	}{
-		Id: "id",
-		Toggle: true,
+		Id:      "id",
+		Toggle:  true,
 		Counter: 5,
 	}
 
@@ -61,12 +61,12 @@ func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Debug_WritesJSONToBuffer
 func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Info_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	body := &struct {
-		Id string `json:"id,omitempty"`
-		Toggle bool `json:"toggle,omitempty"`
-		Counter int `json:"counter,omitempty"`
+		Id      string `json:"id,omitempty"`
+		Toggle  bool   `json:"toggle,omitempty"`
+		Counter int    `json:"counter,omitempty"`
 	}{
-		Id: "id",
-		Toggle: true,
+		Id:      "id",
+		Toggle:  true,
 		Counter: 5,
 	}
 
@@ -78,12 +78,12 @@ func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Info_WritesJSONToBuffer(
 func TestLogMessageWithVisibilityIsFalseAndStructAsBody_Error_WritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 	body := &struct {
-		Id string `json:"id,omitempty"`
-		Toggle bool `json:"toggle,omitempty"`
-		Counter int `json:"counter,omitempty"`
+		Id      string `json:"id,omitempty"`
+		Toggle  bool   `json:"toggle,omitempty"`
+		Counter int    `json:"counter,omitempty"`
 	}{
-		Id: "id",
-		Toggle: true,
+		Id:      "id",
+		Toggle:  true,
 		Counter: 5,
 	}
 
@@ -225,6 +225,14 @@ func TestLogMessageWithDB_Info_AddDBPropertyAndWritesJSONToBuffer(t *testing.T) 
 	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"attr\":{\"db\":{\"name\":\"CustomDb\"}}}\n")
 }
 
+func TestLogMessageWithUserId_Info_AddsUserIdHashAndWritesJSONToBuffer(t *testing.T) {
+	rec := initializeLogger(t)
+
+	log.WithUserId("a63554a8-1234-5678-1199-37a3b7d24e82").Info(context.Background(), "Log message")
+
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"body\":\"Log message\",\"uid\":\"5219bb0e97ae8956431ca19e10105c0d82a0cf1386cec6e01a7eaeae04722ded\"}\n")
+}
+
 func TestLogMessageWithException_Info_AddExceptionPropertyAndWritesJSONToBuffer(t *testing.T) {
 	rec := initializeLogger(t)
 
@@ -287,11 +295,12 @@ func TestLogMessageWithEveryPossibleOption_Info_AddAllPropertiesAndWritesJSONToB
 		WithVisibility(false).
 		WithHttp(log.Http{Method: "Get"}).
 		WithDB(log.DB{Name: "CustomDb"}).
+		WithUserId("a63554a8-1234-5678-1199-37a3b7d24e82").
 		WithException(log.Exception{Type: "CustomLogException"}).
 		WithAdditionalAttributes(customAttr).
 		Info(context.Background(), "Log message")
 
-	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"name\":\"Log message name\",\"body\":\"Log message\",\"attr\":{\"a\":{\"one\":1,\"two\":2},\"b\":{\"one\":1,\"two\":2},\"c\":\"3\",\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"},\"http\":{\"method\":\"Get\"}},\"vis\":0}\n")
+	rec.OutputShouldBe("{\"time\":\"2022-01-01T01:02:03.000000004Z\",\"sev\":9,\"name\":\"Log message name\",\"body\":\"Log message\",\"uid\":\"5219bb0e97ae8956431ca19e10105c0d82a0cf1386cec6e01a7eaeae04722ded\",\"attr\":{\"a\":{\"one\":1,\"two\":2},\"b\":{\"one\":1,\"two\":2},\"c\":\"3\",\"db\":{\"name\":\"CustomDb\"},\"exception\":{\"type\":\"CustomLogException\"},\"http\":{\"method\":\"Get\"}},\"vis\":0}\n")
 }
 
 func TestLogMessageWithRegisteredHookAndOtherService_Info_OverrideServicePropertyAndWritesJSONToBuffer(t *testing.T) {
