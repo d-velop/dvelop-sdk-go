@@ -1,10 +1,11 @@
 package environment_test
 
 import (
-	"github.com/d-velop/dvelop-sdk-go/environment"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/d-velop/dvelop-sdk-go/environment"
 )
 
 func TestRequestWithEnvironmentFunction_UsesReturnedEnvironment(t *testing.T) {
